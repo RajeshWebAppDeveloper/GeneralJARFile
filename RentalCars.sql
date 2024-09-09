@@ -63,3 +63,40 @@ CREATE TABLE admin_rental_cars_upload(
 	,file_type VARCHAR
 	,convert_into_png_status VARCHAR
 );
+
+drop table admin_rental_cars_details;
+CREATE TABLE admin_rental_cars_details(
+	id UUID   PRIMARY KEY
+	,brand VARCHAR		
+	,car_name VARCHAR
+	,car_no VARCHAR
+	,is_ac VARCHAR	
+	,img_url VARCHAR
+	,category VARCHAR
+	,no_of_seat VARCHAR
+	,is_gps VARCHAR
+	,transmission_type VARCHAR
+	,fuel_type VARCHAR	
+	,limit_km VARCHAR
+	,price_per_day VARCHAR
+);
+
+
+
+SELECT 
+	m1.id
+	,m1.file_name
+	,m2.car_name
+	,m2.price_per_day
+	,m2.car_no
+	,m2.no_of_seat
+	,m2.transmission_type
+	,m2.fuel_type
+FROM
+	admin_rental_cars_upload m1
+	,admin_rental_cars_details m2
+WHERE
+	m1.id = m2.id
+	AND m2.car_name is  NOT NUll;
+
+	
