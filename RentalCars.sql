@@ -14,7 +14,7 @@ creating database in postgres
 	create database rentalcars; 	/* in windows */
 
 
-DROP TABLE customer_registration_details;
+--DROP TABLE customer_registration_details;
 CREATE TABLE customer_registration_details(
 	id UUID
 	,name VARCHAR
@@ -26,15 +26,17 @@ CREATE TABLE customer_registration_details(
 	,sign_status VARCHAR
 );
 
-
+DROP TABLE admin_software_user_details;
 CREATE TABLE admin_software_user_details(
 	user_id VARCHAR   PRIMARY KEY
 	,password VARCHAR
 	,email_id VARCHAR
 	,mobile_no VARCHAR
+	,role_name VARCHAR
+	,branch VARCHAR
 	
 );
-insert into admin_software_user_details values('admin','123','rajesh@smartyuppies.com','9090909090');
+insert into admin_software_user_details values('admin','123','rajesh@smartyuppies.com','9090909090','Super Admin','Chennai');
 --Drop table admin_default_properties;
 CREATE TABLE admin_default_properties(
 	id UUID   PRIMARY KEY
@@ -145,6 +147,7 @@ CREATE TABLE admin_view_multiple_day_car_booking_payment_rule(
 	id UUID   PRIMARY KEY
 	,no_of_days VARCHAR	
 	,car_rent_amount_additional_percentage VARCHAR
+	,adjust_type VARCHAR
 );
 
 
@@ -179,7 +182,7 @@ DECLARE
     noOfCustomerBookingDays NUMERIC := 0;
     carRentPricePerDay NUMERIC := 0;
     holidayCarAdditionalChargesPercent NUMERIC := 0;
-    multipleDayCarAdditionalChargesPercent NUMERIC := 0;
+    multipleDayRuleRecord RECORD;
     totalBookingPrice NUMERIC := 0;
     deliveryAmount NUMERIC := 0;
     finalPrice NUMERIC := 0;
@@ -214,30 +217,48 @@ BEGIN
             TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(cFromDate::DATE, 'DD/MM/YYYY');
         
         -- Calculate total price with additional charges
-        totalBookingPrice := carRentPricePerDay + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
+        
+        IF holidayCarAdditionalChargesPercent IS NOT NULL THEN 
+        	totalBookingPrice := carRentPricePerDay + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
+        ELSIF holidayCarAdditionalChargesPercent IS NULL THEN 
+        	totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
+		END IF; 
 
         RAISE NOTICE 'TOTAL BOOKING PRICE FOR 1 DAY: %', totalBookingPrice;
 
     ELSIF noOfCustomerBookingDays > 1 THEN
     	SELECT 
-            ps.car_rent_amount_additional_percentage::NUMERIC
+            ps.*
         INTO 
-            multipleDayCarAdditionalChargesPercent
+            multipleDayRuleRecord
         FROM 
             admin_view_multiple_day_car_booking_payment_rule ps
         WHERE 
             ps.no_of_days::NUMERIC = noOfCustomerBookingDays;
-        -- For multiple days, just multiply by the number of days
-        totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) + (carRentPricePerDay * multipleDayCarAdditionalChargesPercent/ 100));
+        
+        IF multipleDayRuleRecord IS NOT NULL THEN 
+        	IF multipleDayRuleRecord.adjust_type = 'Increase' THEN
+        		totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) + (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
+        	ELSIF multipleDayRuleRecord.adjust_type = 'Decrease' THEN
+        		totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) - (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
+        	END IF;        	
+        ELSIF multipleDayRuleRecord IS NULL THEN 
+        	totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
+		END IF; 		
         
         RAISE NOTICE 'TOTAL BOOKING PRICE FOR MULTIPLE DAYS: %', totalBookingPrice;
     END IF;
 
     /****************************** DELIVERY CHARGES ****************************************/
     IF lower(cPickType) = lower('delivery') THEN
-        deliveryAmount := 500;
-    ELSE
-    	deliveryAmount := 300;
+  		SELECT
+  			dp.property_value::NUMERIC
+  		INTO
+  			deliveryAmount
+  		FROM
+  			admin_default_properties dp     
+    	WHERE
+    		lower(property_name) = 'deliverycharges';
     END IF;
     
     RAISE NOTICE 'DELIVERY CHARGES: %', deliveryAmount;
@@ -247,7 +268,8 @@ BEGIN
 
     FOR customerCarsRentPriceDetails IN
 		SELECT 
-			uuid_generate_v4() as id
+			/*uuid_generate_v4() as id*/
+			gen_random_uuid() as id
 			,COALESCE(round(totalBookingPrice),0) as car_rent_charges
             ,COALESCE(deliveryAmount,0) as delivery_charges
             ,COALESCE(round(finalPrice),0) as total_payable
@@ -288,14 +310,14 @@ CREATE TABLE driver_job_request (
 --DROP TABLE IF EXISTS customer_car_rent_booking_details CASCADE;
 CREATE TABLE customer_car_rent_booking_details (
     id UUID  PRIMARY KEY
-    ,created_date DATE
+    ,created_date TIMESTAMP
     ,customer_name VARCHAR
     ,mobile_no VARCHAR
     ,email_id VARCHAR
     ,car_no VARCHAR
     ,car_name VARCHAR
-    ,from_date DATE
-    ,to_date DATE     
+    ,from_date TIMESTAMP
+    ,to_date TIMESTAMP     
     ,pick_up_type VARCHAR
     ,delivery_or_pickup_charges NUMERIC
     ,car_rent_charges NUMERIC
@@ -305,35 +327,27 @@ CREATE TABLE customer_car_rent_booking_details (
  );
 
 
-CREATE OR REPLACE FUNCTION getCustomerBookingDetailsList() RETURNS SETOF customer_car_rent_booking_details AS $BODY$
-	DECLARE
 
-	    customer_cars_rent_price_details;
-	    
-	BEGIN
 
- 		SELECT 
- 			m1.*
-        FROM 
-        	customer_car_rent_booking_details m1
-        WHERE 
-        	m1.created_date LIKE CONCAT(:createdDate, '%')
-        	AND m1.customer_name LIKE CONCAT(:customerName, '%')
-        	AND m1.mobile_no LIKE CONCAT(:mobileNo, '%')
-        	AND m1.car_no LIKE CONCAT(:carNo, '%')
-        	AND (
-            	(m1.from_date BETWEEN :startDate AND :endDate)
-            	OR (MONTH(m1.from_date) = MONTH(CURRENT_DATE) AND YEAR(m1.from_date) = YEAR(CURRENT_DATE))
-        		)
-        	AND (
-            	(m1.to_date BETWEEN :startDate AND :endDate)
-            	OR (MONTH(m1.to_date) = MONTH(CURRENT_DATE) AND YEAR(m1.to_date) = YEAR(CURRENT_DATE))
-        		)
-        	AND m1.total_payable = :totalPayable
-        	AND m1.pick_up_type = :pickUpType
-        	AND m1.approve_status = :approveStatus
+--SELECT 'true'::VARCHAR as status FROM customer_car_rent_booking_details WHERE car_no = 'VW 67 JH 7878' AND to_date < '2024-09-19T20:28' AND to_date < '2024-09-20T17:28' AND approve_status = 'Car Returned';
 
-	
+
+--DROP TABLE admin_email_template;
+CREATE TABLE admin_email_template(
+	id UUID   PRIMARY KEY
+	,email_subject VARCHAR		
+	,email_html_body TEXT		
+);
+
+
+--DROP TABLE admin_user_rights;
+CREATE TABLE admin_user_rights(
+	id UUID   PRIMARY KEY
+	,role_name VARCHAR		
+	,rights_object TEXT		
+);
+
+
 
 
 
