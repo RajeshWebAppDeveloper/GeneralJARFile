@@ -324,6 +324,7 @@ CREATE TABLE customer_car_rent_booking_details (
     ,total_payable NUMERIC
     ,approve_status VARCHAR
     ,car_img_name VARCHAR
+    ,address VARCHAR
  );
 
 
@@ -344,7 +345,7 @@ CREATE TABLE admin_email_template(
 CREATE TABLE admin_user_rights(
 	id UUID   PRIMARY KEY
 	,role_name VARCHAR		
-	,rights_object TEXT		
+	,rights_object JSON		
 );
 
 
