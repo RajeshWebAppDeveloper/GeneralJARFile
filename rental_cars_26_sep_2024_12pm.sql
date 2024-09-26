@@ -339,6 +339,24 @@ $$;
 ALTER FUNCTION public.getrentaridecustomercarslist(categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
 
 --
+-- Name: set_created_date(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_created_date() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    IF NEW.created_date IS NULL THEN
+        NEW.created_date := CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_created_date() OWNER TO postgres;
+
+--
 -- Name: admin_cars_category_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -565,11 +583,26 @@ CREATE TABLE public.customer_feedback_details (
     id uuid NOT NULL,
     person_name character varying(255),
     person_contact character varying(255),
-    person_description character varying(255)
+    person_description text,
+    created_date date DEFAULT CURRENT_TIMESTAMP
 );
 
 
 ALTER TABLE public.customer_feedback_details OWNER TO postgres;
+
+--
+-- Name: customer_profile_image_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.customer_profile_image_details (
+    id uuid NOT NULL,
+    file_path character varying(255),
+    file_name character varying(255),
+    file_type character varying(255)
+);
+
+
+ALTER TABLE public.customer_profile_image_details OWNER TO postgres;
 
 --
 -- Name: customer_registration_details; Type: TABLE; Schema: public; Owner: postgres
@@ -793,10 +826,10 @@ dhasa	123	dhasa@gmail.com	1234567889	exexutive	Trichy
 --
 
 COPY public.admin_user_rights (id, role_name, rights_object) FROM stdin;
-692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""}}
 64a3a800-fabb-4146-8f89-0172997a7fe5	exexutive	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""}}
 558f2ec2-365f-4a29-8e99-5331186dcfa9	Admin2	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":""},"Payment Rule":{"Multi-Day Booking":""}}
 a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""}}
+692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""},"Feedback":""}
 \.
 
 
@@ -865,7 +898,16 @@ COPY public.customer_feedback (id, person_name, person_contact, person_descripti
 -- Data for Name: customer_feedback_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_feedback_details (id, person_name, person_contact, person_description) FROM stdin;
+COPY public.customer_feedback_details (id, person_name, person_contact, person_description, created_date) FROM stdin;
+5fae5eee-2a53-4222-8036-72a64017d141	adf	asdf	asdfasdfasdfasdfsa	2024-09-26
+\.
+
+
+--
+-- Data for Name: customer_profile_image_details; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.customer_profile_image_details (id, file_path, file_name, file_type) FROM stdin;
 \.
 
 
@@ -1062,6 +1104,21 @@ ALTER TABLE ONLY public.customer_feedback_details
 
 ALTER TABLE ONLY public.customer_feedback
     ADD CONSTRAINT customer_feedback_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_profile_image_details customer_profile_image_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer_profile_image_details
+    ADD CONSTRAINT customer_profile_image_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_feedback_details before_insert_set_created_date; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER before_insert_set_created_date BEFORE INSERT ON public.customer_feedback_details FOR EACH ROW EXECUTE FUNCTION public.set_created_date();
 
 
 --
