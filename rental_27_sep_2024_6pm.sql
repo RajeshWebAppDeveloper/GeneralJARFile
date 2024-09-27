@@ -47,7 +47,8 @@ CREATE TYPE public.customer_cars_info_list AS (
 	transmission_type character varying,
 	fuel_type character varying,
 	limit_km character varying,
-	price_per_day character varying
+	price_per_day character varying,
+	branch character varying
 );
 
 
@@ -242,55 +243,6 @@ $$;
 ALTER FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cpicktype character varying) OWNER TO postgres;
 
 --
--- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.getrentaridecustomercarslist(categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
-    LANGUAGE plpgsql
-    AS $$
-
-DECLARE
-customerCarsInfoList customer_cars_info_list;
-
-BEGIN
-FOR customerCarsInfoList IN
-SELECT 
-m2.id 
-,m2.brand
-,m2.car_name
-,m2.car_no 
-,m2.is_ac 
-,m1.file_name as img_url
-,m2.category
-,m2.no_of_seat
-,m2.is_gps 
-,m2.transmission_type
-,m2.fuel_type 
-,m2.limit_km 
-,m2.price_per_day
-FROM
-admin_rental_cars_upload m1
-,admin_rental_cars_details m2
-WHERE
-m1.id = m2.id
-AND m2.car_name is  NOT NUll
-AND lower(m2.category) like lower(categoryArgs)||'%'
-AND lower(m2.fuel_type) like lower(fuelType)||'%'
-AND lower(m2.transmission_type) like lower(transmissionType)||'%'
-AND lower(m2.limit_km) like lower(kmLimit)||'%'
-LOOP 
-
-RETURN NEXT customerCarsInfoList;
-
-END LOOP;
-END
-
-$$;
-
-
-ALTER FUNCTION public.getrentaridecustomercarslist(categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
-
---
 -- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -317,12 +269,14 @@ m2.id
 ,m2.fuel_type 
 ,m2.limit_km 
 ,m2.price_per_day
+,m2.branch
 FROM
 admin_rental_cars_upload m1
 ,admin_rental_cars_details m2
 WHERE
 m1.id = m2.id
 AND m2.car_name is  NOT NUll
+AND lower(m2.branch) like lower(locationArgs)||'%'
 AND lower(m2.category) like lower(categoryArgs)||'%'
 AND lower(m2.fuel_type) like lower(fuelType)||'%'
 AND lower(m2.transmission_type) like lower(transmissionType)||'%'
@@ -817,14 +771,13 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 --
 
 COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, branch) FROM stdin;
-04c53d48-1266-4b84-8aab-665bb3cf35ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 daeaba55-3c83-42af-a027-4d9086f07383	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 102f7460-456a-4583-9bce-9ebdd648f7ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 dc612b8f-1b64-44eb-8976-022cbca3857e	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 e62e3353-593f-475b-8c13-ac9f4b7513b6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 29487834-63c4-48b2-a9e0-3dceb7f3e788	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-8952e22e-247c-4ebf-9cbd-8062a4f650bc	BMW	asdf	asdf	Yes	8952e22e-247c-4ebf-9cbd-8062a4f650bc_bmw-offer.png	Hatchback	5	Yes	Automatic	Petrol	300 KM	1000	
+04c53d48-1266-4b84-8aab-665bb3cf35ae	afd	asdf	adsf	Yes	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Hatchback	8	Yes	Manual	Diesel	300 KM	1000	Chennai
 \.
 
 
@@ -833,7 +786,6 @@ e62e3353-593f-475b-8c13-ac9f4b7513b6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
-8952e22e-247c-4ebf-9cbd-8062a4f650bc	C:/Users/Lenovo/Desktop/uploads/	8952e22e-247c-4ebf-9cbd-8062a4f650bc_bmw-offer.png	image/png	true
 04c53d48-1266-4b84-8aab-665bb3cf35ae	C:/Users/Lenovo/Desktop/uploads/	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	image/png	true
 bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	C:/Users/Lenovo/Desktop/uploads/	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	image/png	true
 daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	image/png	true
