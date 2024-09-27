@@ -788,12 +788,13 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 --
 
 COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, feul_type) FROM stdin;
-b23dea8e-bcc3-4bfd-92a2-6a3efe5470ab	BMW	BMW x3	VW 67 JH 7878	Yes	b23dea8e-bcc3-4bfd-92a2-6a3efe5470ab_bmw-offer.png	Sedan	5	Yes	Automatic	Petrol	500 KM	1000	\N
-1cc7b4ee-410e-46f7-bcdc-9d7c9455980d	honda	shine	RA 78 HQ 2343	Yes	1cc7b4ee-410e-46f7-bcdc-9d7c9455980d_mercedes-offer.png		5	Yes	Automatic	Diesel	320 KM	5000	\N
-efe5e5b1-ece8-4247-a9cf-7817cc06b874	adf	asdf	AN 98 BH 9879	Yes	efe5e5b1-ece8-4247-a9cf-7817cc06b874_nissan-offer.png	Sedan	5	Yes	Automatic	Diesel	320 KM	10000	\N
-375db3e0-2cd1-4563-a232-a157cbdb5522	BMW	X4	MH 78 BQ 7898	Yes	375db3e0-2cd1-4563-a232-a157cbdb5522_offer-toyota.png	MUV	5	No	Automatic	Diesel	140 KM	40000	\N
-20311581-9b00-4ab9-9fcb-5320651ffe0b	asdf	asdf	97989889	Yes	20311581-9b00-4ab9-9fcb-5320651ffe0b_tesla.png	Hatchback	5	Yes	Automatic	Petrol	140 KM	30000	\N
-abda2226-ef7a-4ae9-ba9f-f58443c452da	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+3028cbe4-f7f7-4a1d-8fcb-d203b5195def	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+ca153e8d-f7ef-4af6-95eb-b5ce36988f97	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+7abaddf4-006b-4196-a8b0-0221b73876af	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+56e87e37-9282-400e-826d-676ead7d5b43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+fd27682a-d2d6-4ac7-b2f7-473361c31694	adsf	asdf	asdf	Yes	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Hatchback	8	No	Automatic	Diesel	300 KM	23443	\N
 \.
 
 
@@ -802,12 +803,13 @@ abda2226-ef7a-4ae9-ba9f-f58443c452da	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
-b23dea8e-bcc3-4bfd-92a2-6a3efe5470ab	C:/Users/Lenovo/Desktop/uploads/	b23dea8e-bcc3-4bfd-92a2-6a3efe5470ab_bmw-offer.png	image/png	true
-1cc7b4ee-410e-46f7-bcdc-9d7c9455980d	C:/Users/Lenovo/Desktop/uploads/	1cc7b4ee-410e-46f7-bcdc-9d7c9455980d_mercedes-offer.png	image/png	true
-efe5e5b1-ece8-4247-a9cf-7817cc06b874	C:/Users/Lenovo/Desktop/uploads/	efe5e5b1-ece8-4247-a9cf-7817cc06b874_nissan-offer.png	image/png	true
-375db3e0-2cd1-4563-a232-a157cbdb5522	C:/Users/Lenovo/Desktop/uploads/	375db3e0-2cd1-4563-a232-a157cbdb5522_offer-toyota.png	image/png	true
-20311581-9b00-4ab9-9fcb-5320651ffe0b	C:/Users/Lenovo/Desktop/uploads/	20311581-9b00-4ab9-9fcb-5320651ffe0b_tesla.png	image/jpeg	true
-abda2226-ef7a-4ae9-ba9f-f58443c452da	C:/Users/Lenovo/Desktop/uploads/	abda2226-ef7a-4ae9-ba9f-f58443c452da_QR Payment Smart Yuppies.png	image/jpeg	true
+fd27682a-d2d6-4ac7-b2f7-473361c31694	C:/Users/Lenovo/Desktop/uploads/	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	image/png	true
+3028cbe4-f7f7-4a1d-8fcb-d203b5195def	C:/Users/Lenovo/Desktop/uploads/	3028cbe4-f7f7-4a1d-8fcb-d203b5195def_mercedes-offer.png	image/png	true
+cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0	C:/Users/Lenovo/Desktop/uploads/	cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0_nissan-offer.png	image/png	true
+ca153e8d-f7ef-4af6-95eb-b5ce36988f97	C:/Users/Lenovo/Desktop/uploads/	ca153e8d-f7ef-4af6-95eb-b5ce36988f97_offer-toyota.png	image/png	true
+7abaddf4-006b-4196-a8b0-0221b73876af	C:/Users/Lenovo/Desktop/uploads/	7abaddf4-006b-4196-a8b0-0221b73876af_tesla.png	image/jpeg	true
+56e87e37-9282-400e-826d-676ead7d5b43	C:/Users/Lenovo/Desktop/uploads/	56e87e37-9282-400e-826d-676ead7d5b43_tesla-removebg-preview.png	image/png	true
+4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1	C:/Users/Lenovo/Desktop/uploads/	4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1_toyota-offer-2.png	image/png	true
 \.
 
 
@@ -867,6 +869,8 @@ BMW	X5	2008	\N	\N	\N
 
 COPY public.customer_booking_documents_details (id, customer_name, mobile_no, email_id, document_type, docuent_number, name_on_document, file_path, file_name, file_type, document_number) FROM stdin;
 c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	c8591ff7-fdec-427d-921a-c8e27b5b8535_118-proforma-Naivedhyam_Kannan_Iyengar.pdf	application/pdf	asdf
+57e95e89-bc80-438e-8e11-d967fc037568	K. Naveen	9090909090	kpnaveen1312@gmail.com	Driving License	\N	Driving License	C:/Users/Lenovo/Desktop/uploads/	57e95e89-bc80-438e-8e11-d967fc037568_tesla-removebg-preview.png	image/png	DSA
+6ceb0952-b264-46f1-8f93-7767ad81dfe8	K. Naveen	9090909090	kpnaveen1312@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	6ceb0952-b264-46f1-8f93-7767ad81dfe8_toyota-offer-2.png	image/png	asdfasdf
 \.
 
 
@@ -875,6 +879,8 @@ c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com
 --
 
 COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, from_date, to_date, pick_up_type, delivery_or_pickup_charges, car_rent_charges, total_payable, approve_status, car_img_name, address, extra_info) FROM stdin;
+a8209786-8e2a-4916-af6e-272c777d33bc	2024-09-26 19:19:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	asdf	asdf	2024-09-27 11:01:00	2024-09-27 11:01:00	Self Pickup	0	23443	23443	New Booking	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Kilampakkam	
+f605c679-ef03-482e-9ff7-6f1a27444399	2024-09-26 19:26:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	asdf	asdf	2024-10-02 11:01:00	2024-10-03 22:02:00	Self Pickup	0	46886	46886	New Booking	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Kilampakkam	
 \.
 
 
@@ -917,6 +923,7 @@ COPY public.customer_profile_image_details (id, file_path, file_name, file_type)
 
 COPY public.customer_registration_details (id, name, password, mobile_no, alternative_mobile_no, age, email_id, sign_status) FROM stdin;
 1c966750-d54c-4e90-b764-bdbe0817073e	K. Naveen	1234	9090909090	8989898989	25	kpnaveen1312@gmail.com	active
+7dffea67-a539-4807-8107-a6160216bbcd	Ravi	1234	7878787878	787878	78	787878@gmailcom	active
 \.
 
 
