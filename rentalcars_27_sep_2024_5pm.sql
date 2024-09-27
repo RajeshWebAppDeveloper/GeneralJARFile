@@ -241,52 +241,6 @@ $$;
 
 ALTER FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cpicktype character varying) OWNER TO postgres;
 
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
-
---
--- Name: admin_rental_cars_details; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.admin_rental_cars_details (
-    id uuid NOT NULL,
-    brand character varying(255),
-    car_name character varying(255),
-    car_no character varying(255),
-    is_ac character varying(255),
-    img_url character varying(255),
-    category character varying(255),
-    no_of_seat character varying(255),
-    is_gps character varying(255),
-    transmission_type character varying(255),
-    fuel_type character varying(255),
-    limit_km character varying(255),
-    price_per_day character varying(255),
-    feul_type character varying(255)
-);
-
-
-ALTER TABLE public.admin_rental_cars_details OWNER TO postgres;
-
---
--- Name: getcustomerbookingdetailslist(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.getcustomerbookingdetailslist() RETURNS SETOF public.admin_rental_cars_details
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT *
-    FROM admin_rental_cars_details limit 1;
-    
-END;
-$$;
-
-
-ALTER FUNCTION public.getcustomerbookingdetailslist() OWNER TO postgres;
-
 --
 -- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
@@ -324,8 +278,6 @@ AND lower(m2.category) like lower(categoryArgs)||'%'
 AND lower(m2.fuel_type) like lower(fuelType)||'%'
 AND lower(m2.transmission_type) like lower(transmissionType)||'%'
 AND lower(m2.limit_km) like lower(kmLimit)||'%'
-
-
 LOOP 
 
 RETURN NEXT customerCarsInfoList;
@@ -337,6 +289,55 @@ $$;
 
 
 ALTER FUNCTION public.getrentaridecustomercarslist(categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
+
+--
+-- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.getrentaridecustomercarslist(locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
+    LANGUAGE plpgsql
+    AS $$
+
+DECLARE
+customerCarsInfoList customer_cars_info_list;
+
+BEGIN
+FOR customerCarsInfoList IN
+SELECT 
+m2.id 
+,m2.brand
+,m2.car_name
+,m2.car_no 
+,m2.is_ac 
+,m1.file_name as img_url
+,m2.category
+,m2.no_of_seat
+,m2.is_gps 
+,m2.transmission_type
+,m2.fuel_type 
+,m2.limit_km 
+,m2.price_per_day
+FROM
+admin_rental_cars_upload m1
+,admin_rental_cars_details m2
+WHERE
+m1.id = m2.id
+AND m2.car_name is  NOT NUll
+AND lower(m2.category) like lower(categoryArgs)||'%'
+AND lower(m2.fuel_type) like lower(fuelType)||'%'
+AND lower(m2.transmission_type) like lower(transmissionType)||'%'
+AND lower(m2.limit_km) like lower(kmLimit)||'%'
+LOOP 
+
+RETURN NEXT customerCarsInfoList;
+
+END LOOP;
+END
+
+$$;
+
+
+ALTER FUNCTION public.getrentaridecustomercarslist(locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
 
 --
 -- Name: set_created_date(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -370,6 +371,10 @@ CREATE SEQUENCE public.admin_cars_category_seq
 
 ALTER SEQUENCE public.admin_cars_category_seq OWNER TO postgres;
 
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
 --
 -- Name: admin_default_properties; Type: TABLE; Schema: public; Owner: postgres
 --
@@ -397,6 +402,30 @@ CREATE TABLE public.admin_email_template (
 
 
 ALTER TABLE public.admin_email_template OWNER TO postgres;
+
+--
+-- Name: admin_rental_cars_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.admin_rental_cars_details (
+    id uuid NOT NULL,
+    brand character varying(255),
+    car_name character varying(255),
+    car_no character varying(255),
+    is_ac character varying(255),
+    img_url character varying(255),
+    category character varying(255),
+    no_of_seat character varying(255),
+    is_gps character varying(255),
+    transmission_type character varying(255),
+    fuel_type character varying(255),
+    limit_km character varying(255),
+    price_per_day character varying(255),
+    branch character varying(255)
+);
+
+
+ALTER TABLE public.admin_rental_cars_details OWNER TO postgres;
 
 --
 -- Name: admin_rental_cars_upload; Type: TABLE; Schema: public; Owner: postgres
@@ -787,14 +816,15 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 -- Data for Name: admin_rental_cars_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, feul_type) FROM stdin;
-3028cbe4-f7f7-4a1d-8fcb-d203b5195def	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-ca153e8d-f7ef-4af6-95eb-b5ce36988f97	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-7abaddf4-006b-4196-a8b0-0221b73876af	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-56e87e37-9282-400e-826d-676ead7d5b43	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-fd27682a-d2d6-4ac7-b2f7-473361c31694	adsf	asdf	asdf	Yes	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Hatchback	8	No	Automatic	Diesel	300 KM	23443	\N
+COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, branch) FROM stdin;
+04c53d48-1266-4b84-8aab-665bb3cf35ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+daeaba55-3c83-42af-a027-4d9086f07383	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+102f7460-456a-4583-9bce-9ebdd648f7ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+dc612b8f-1b64-44eb-8976-022cbca3857e	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+e62e3353-593f-475b-8c13-ac9f4b7513b6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+29487834-63c4-48b2-a9e0-3dceb7f3e788	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+8952e22e-247c-4ebf-9cbd-8062a4f650bc	BMW	asdf	asdf	Yes	8952e22e-247c-4ebf-9cbd-8062a4f650bc_bmw-offer.png	Hatchback	5	Yes	Automatic	Petrol	300 KM	1000	
 \.
 
 
@@ -803,13 +833,14 @@ fd27682a-d2d6-4ac7-b2f7-473361c31694	adsf	asdf	asdf	Yes	fd27682a-d2d6-4ac7-b2f7-
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
-fd27682a-d2d6-4ac7-b2f7-473361c31694	C:/Users/Lenovo/Desktop/uploads/	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	image/png	true
-3028cbe4-f7f7-4a1d-8fcb-d203b5195def	C:/Users/Lenovo/Desktop/uploads/	3028cbe4-f7f7-4a1d-8fcb-d203b5195def_mercedes-offer.png	image/png	true
-cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0	C:/Users/Lenovo/Desktop/uploads/	cef47d5b-4ff6-4055-9ff3-9e0ebfde3ec0_nissan-offer.png	image/png	true
-ca153e8d-f7ef-4af6-95eb-b5ce36988f97	C:/Users/Lenovo/Desktop/uploads/	ca153e8d-f7ef-4af6-95eb-b5ce36988f97_offer-toyota.png	image/png	true
-7abaddf4-006b-4196-a8b0-0221b73876af	C:/Users/Lenovo/Desktop/uploads/	7abaddf4-006b-4196-a8b0-0221b73876af_tesla.png	image/jpeg	true
-56e87e37-9282-400e-826d-676ead7d5b43	C:/Users/Lenovo/Desktop/uploads/	56e87e37-9282-400e-826d-676ead7d5b43_tesla-removebg-preview.png	image/png	true
-4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1	C:/Users/Lenovo/Desktop/uploads/	4a9a0ff7-51cc-4280-88b3-3ae1ff7ec8e1_toyota-offer-2.png	image/png	true
+8952e22e-247c-4ebf-9cbd-8062a4f650bc	C:/Users/Lenovo/Desktop/uploads/	8952e22e-247c-4ebf-9cbd-8062a4f650bc_bmw-offer.png	image/png	true
+04c53d48-1266-4b84-8aab-665bb3cf35ae	C:/Users/Lenovo/Desktop/uploads/	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	image/png	true
+bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	C:/Users/Lenovo/Desktop/uploads/	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	image/png	true
+daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	image/png	true
+102f7460-456a-4583-9bce-9ebdd648f7ae	C:/Users/Lenovo/Desktop/uploads/	102f7460-456a-4583-9bce-9ebdd648f7ae_tesla.png	image/jpeg	true
+dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1b64-44eb-8976-022cbca3857e_tesla-removebg-preview.png	image/png	true
+e62e3353-593f-475b-8c13-ac9f4b7513b6	C:/Users/Lenovo/Desktop/uploads/	e62e3353-593f-475b-8c13-ac9f4b7513b6_toyota-offer-2.png	image/png	true
+29487834-63c4-48b2-a9e0-3dceb7f3e788	C:/Users/Lenovo/Desktop/uploads/	29487834-63c4-48b2-a9e0-3dceb7f3e788_QR Payment Smart Yuppies.png	image/jpeg	true
 \.
 
 
