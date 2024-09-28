@@ -771,13 +771,13 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 --
 
 COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, branch) FROM stdin;
-bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-daeaba55-3c83-42af-a027-4d9086f07383	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-102f7460-456a-4583-9bce-9ebdd648f7ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-dc612b8f-1b64-44eb-8976-022cbca3857e	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-e62e3353-593f-475b-8c13-ac9f4b7513b6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-29487834-63c4-48b2-a9e0-3dceb7f3e788	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-04c53d48-1266-4b84-8aab-665bb3cf35ae	afd	asdf	adsf	Yes	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Hatchback	8	Yes	Manual	Diesel	300 KM	1000	Chennai
+bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+82787c45-468b-4f30-a140-5c3562918150	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+bec18e0f-d41e-4315-83ee-a2b9f4726159	asdf	asd	asdf	No	bec18e0f-d41e-4315-83ee-a2b9f4726159_cha.png	Hatchback	5	Yes	Automatic	Diesel	300 KM	12222	Chennai
+e58dd479-33b9-4875-838b-3fafeb0eb7b4	kdjfkj	kfkj	ksjfksj	Yes	e58dd479-33b9-4875-838b-3fafeb0eb7b4_hiring.png	Hatchback	5	No	Automatic	Diesel	300 KM	222	Chennai
+6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec	sfkjskfj	sfjss	,sjfjs	Yes	6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec_Screenshot%20(1).png	Hatchback	5	Yes	Automatic	Electric	300 KM	444	Chennai
+a02c0465-a863-487d-9a3b-cdf953e1499d	snfksnfk	skfksjk	sjfjksj	Yes	a02c0465-a863-487d-9a3b-cdf953e1499d_Screenshot%202023-08-23%20193113.png	Hatchback	5	Yes	Automatic	Petrol	300 KM	3333	Chennai
+3b5d1167-6370-4308-9e3e-ba71ed608dec	mercediz	Tex 3	1111	Yes	3b5d1167-6370-4308-9e3e-ba71ed608dec_audi_PNG1736.png	Sedan	5	Yes	Automatic	Petrol	400 KM	40000	Chennai
 \.
 
 
@@ -786,13 +786,13 @@ e62e3353-593f-475b-8c13-ac9f4b7513b6	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
-04c53d48-1266-4b84-8aab-665bb3cf35ae	C:/Users/Lenovo/Desktop/uploads/	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	image/png	true
-bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	C:/Users/Lenovo/Desktop/uploads/	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	image/png	true
-daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	image/png	true
-102f7460-456a-4583-9bce-9ebdd648f7ae	C:/Users/Lenovo/Desktop/uploads/	102f7460-456a-4583-9bce-9ebdd648f7ae_tesla.png	image/jpeg	true
-dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1b64-44eb-8976-022cbca3857e_tesla-removebg-preview.png	image/png	true
-e62e3353-593f-475b-8c13-ac9f4b7513b6	C:/Users/Lenovo/Desktop/uploads/	e62e3353-593f-475b-8c13-ac9f4b7513b6_toyota-offer-2.png	image/png	true
-29487834-63c4-48b2-a9e0-3dceb7f3e788	C:/Users/Lenovo/Desktop/uploads/	29487834-63c4-48b2-a9e0-3dceb7f3e788_QR Payment Smart Yuppies.png	image/jpeg	true
+bec18e0f-d41e-4315-83ee-a2b9f4726159	C:/Users/dhasa/OneDrive/Desktop/uploads/	bec18e0f-d41e-4315-83ee-a2b9f4726159_cha.png	image/png	true
+e58dd479-33b9-4875-838b-3fafeb0eb7b4	C:/Users/dhasa/OneDrive/Desktop/uploads/	e58dd479-33b9-4875-838b-3fafeb0eb7b4_hiring.png	image/png	true
+6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec	C:/Users/dhasa/OneDrive/Desktop/uploads/	6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec_Screenshot (1).png	image/png	true
+a02c0465-a863-487d-9a3b-cdf953e1499d	C:/Users/dhasa/OneDrive/Desktop/uploads/	a02c0465-a863-487d-9a3b-cdf953e1499d_Screenshot 2023-08-23 193113.png	image/png	true
+bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45	C:/Users/dhasa/OneDrive/Desktop/uploads/	bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45_Screenshot 2023-09-28 185902.png	image/png	true
+82787c45-468b-4f30-a140-5c3562918150	C:/Users/dhasa/OneDrive/Desktop/uploads/	82787c45-468b-4f30-a140-5c3562918150_Screenshot 2023-09-28 185923.png	image/png	true
+3b5d1167-6370-4308-9e3e-ba71ed608dec	C:/Users/dhasa/OneDrive/Desktop/uploads/	3b5d1167-6370-4308-9e3e-ba71ed608dec_audi_PNG1736.png	image/png	true
 \.
 
 
@@ -864,6 +864,11 @@ c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com
 COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, from_date, to_date, pick_up_type, delivery_or_pickup_charges, car_rent_charges, total_payable, approve_status, car_img_name, address, extra_info) FROM stdin;
 a8209786-8e2a-4916-af6e-272c777d33bc	2024-09-26 19:19:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	asdf	asdf	2024-09-27 11:01:00	2024-09-27 11:01:00	Self Pickup	0	23443	23443	New Booking	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Kilampakkam	
 f605c679-ef03-482e-9ff7-6f1a27444399	2024-09-26 19:26:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	asdf	asdf	2024-10-02 11:01:00	2024-10-03 22:02:00	Self Pickup	0	46886	46886	New Booking	fd27682a-d2d6-4ac7-b2f7-473361c31694_bmw-offer.png	Kilampakkam	
+2d0fbee6-2b60-4663-b76a-66f2318c2a6f	2024-09-27 18:28:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	adsf	asdf	2024-09-28 18:28:00	2024-10-02 18:28:00	Self Pickup	0	5000	5000	New Booking	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Kilampakkam	
+d3827cc6-7c94-46ce-8b72-b3a3b043a0bd	2024-09-27 18:28:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	adsf	asdf	2024-09-28 18:28:00	2024-10-02 18:28:00	Self Pickup	0	5000	5000	New Booking	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Kilampakkam	
+2e064879-88c9-4722-9f32-a2b49e6945ed	2024-09-27 18:29:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	adsf	asdf	2024-09-28 18:28:00	2024-10-02 18:28:00	Self Pickup	0	5000	5000	New Booking	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Kilampakkam	
+3c345f8c-6eb8-4e95-b9ae-48e8ac24e694	2024-09-27 18:29:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	adsf	asdf	2024-09-28 18:28:00	2024-10-02 18:28:00	Self Pickup	0	5000	5000	New Booking	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Kilampakkam	
+da3c9433-c08f-436c-a4a7-41820b692047	2024-09-27 18:29:00	K. Naveen	9090909090	kpnaveen1312@gmail.com	adsf	asdf	2024-09-28 18:28:00	2024-10-02 18:28:00	Self Pickup	0	5000	5000	New Booking	04c53d48-1266-4b84-8aab-665bb3cf35ae_mercedes-offer.png	Kilampakkam	
 \.
 
 
@@ -897,6 +902,7 @@ COPY public.customer_feedback_details (id, person_name, person_contact, person_d
 --
 
 COPY public.customer_profile_image_details (id, file_path, file_name, file_type) FROM stdin;
+1c966750-d54c-4e90-b764-bdbe0817073e	C:/Users/dhasa/OneDrive/Desktop/uploads/	1c966750-d54c-4e90-b764-bdbe0817073e_cha.png	image/png
 \.
 
 
