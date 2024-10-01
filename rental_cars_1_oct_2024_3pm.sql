@@ -250,44 +250,44 @@ CREATE FUNCTION public.getrentaridecustomercarslist(locationargs character varyi
     LANGUAGE plpgsql
     AS $$
 
-		DECLARE
-			customerCarsInfoList customer_cars_info_list;
+DECLARE
+customerCarsInfoList customer_cars_info_list;
 
-		BEGIN
-			FOR customerCarsInfoList IN
-				SELECT 
-					m2.id 
-					,m2.brand
-					,m2.car_name
-					,m2.car_no 
-					,m2.is_ac 
-					,m1.file_name as img_url
-					,m2.category
-					,m2.no_of_seat
-					,m2.is_gps 
-					,m2.transmission_type
-					,m2.fuel_type 
-					,m2.limit_km 
-					,m2.price_per_day
-					,m2.branch
-				FROM
-					admin_rental_cars_upload m1
-					,admin_rental_cars_details m2
-				WHERE
-					m1.id = m2.id
-					AND m2.car_name is  NOT NUll					
-					AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
-					AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
-					AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
-					AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
-					AND lower(m2.limit_km) ILIKE ANY(string_to_array(lower(kmLimit)||'%',','))
-										
-			LOOP 
+BEGIN
+FOR customerCarsInfoList IN
+SELECT 
+m2.id 
+,m2.brand
+,m2.car_name
+,m2.car_no 
+,m2.is_ac 
+,m1.file_name as img_url
+,m2.category
+,m2.no_of_seat
+,m2.is_gps 
+,m2.transmission_type
+,m2.fuel_type 
+,m2.limit_km 
+,m2.price_per_day
+,m2.branch
+FROM
+admin_rental_cars_upload m1
+,admin_rental_cars_details m2
+WHERE
+m1.id = m2.id
+AND m2.car_name is  NOT NUll
+AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
+AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
+AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
+AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
+AND lower(m2.limit_km) ILIKE ANY(string_to_array(lower(kmLimit)||'%',','))
 
-				RETURN NEXT customerCarsInfoList;
+LOOP 
 
-			END LOOP;
-		END
+RETURN NEXT customerCarsInfoList;
+
+END LOOP;
+END
 
 $$;
 
@@ -575,27 +575,12 @@ CREATE TABLE public.customer_feedback_details (
 ALTER TABLE public.customer_feedback_details OWNER TO postgres;
 
 --
--- Name: customer_profile_image_details; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.customer_profile_image_details (
-    id uuid NOT NULL,
-    file_path character varying(255),
-    file_name character varying(255),
-    file_type character varying(255)
-);
-
-
-ALTER TABLE public.customer_profile_image_details OWNER TO postgres;
-
---
 -- Name: customer_registration_details; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.customer_registration_details (
     id uuid,
     name character varying(255),
-    password character varying(255),
     mobile_no character varying(255),
     alternative_mobile_no character varying(255),
     age character varying(255),
@@ -612,8 +597,8 @@ ALTER TABLE public.customer_registration_details OWNER TO postgres;
 
 CREATE TABLE public.profile_image_details (
     id character varying(255) NOT NULL,
-    file_name character varying(255),
     file_path character varying(255),
+    file_name character varying(255),
     file_type character varying(255),
     profile_type character varying(255)
 );
@@ -763,8 +748,8 @@ ALTER LARGE OBJECT 33319 OWNER TO postgres;
 COPY public.admin_default_properties (id, property_name, property_value, email_html_body, email_subject) FROM stdin;
 219ea9d9-e535-44b4-a826-d3d9af6efa5d	Branch	Chennai,Thiruvallur,Madurai,Trichy,Selam	\N	\N
 06c9aa96-a706-4adc-9722-2ce164299c2f	Category	Hatchback,SUV,MUV,luxury,Sedan	\N	\N
-a2118d07-c164-41a9-bd0d-5d261fd4cc62	Km Limit	300 KM,400 KM	\N	\N
 e8fe4516-887d-42ec-9ff8-16eb3ec38e4c	DeliveryCharges	500	\N	\N
+a2118d07-c164-41a9-bd0d-5d261fd4cc62	Km Limit	300 KM,400 KM,450Km	\N	\N
 \.
 
 
@@ -775,10 +760,11 @@ e8fe4516-887d-42ec-9ff8-16eb3ec38e4c	DeliveryCharges	500	\N	\N
 COPY public.admin_email_template (id, email_subject, email_html_body) FROM stdin;
 201465b4-4965-49d6-b25b-87f391885509	CAR RENTAL SERVICE - Hope your travels were amazing! Let's catch up soon 	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:350px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 140px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">Hi ${name},<br/>\n     <b> Successfully Register your Account</b>,\n      Now your have provision to book cars for your trip .                \n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
 04c3fa6d-bf30-4bde-8fbb-d76373ae82b0	CAR RENTAL SERVICE - Car Rental Price Information	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:900px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 700px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">\n      \n      Dear ${name},<br/><br/>   \n\n      \t\t\t\tThank you for reaching out to us regarding car rental prices. We are happy to provide the following details:<br/><br/>\nCategory    : ${category}<br/>\nCar Brand   : ${brand}<br/>\nCar Model   : ${carName}<br/>\nCar Number: ${carNo}<br/>\nNo.of Seats : ${noOfSeats}<br/>\nRate per day: ${pricePerDay}<br/>\nFuel Type   : ${fuelType}<br/>\nTransmission<br/>\nType   \t\t: ${transmissionType}<br/>\nDiscounts\t: Based on Reversing time period (or) No.of days / Duration.<br/><br/>\nIf you have any specific preferences or questions, please let us know. We would be happy to assist you further with your booking.<br/><br/>\n\nWe look forward to helping you with your car rental needs.<br/><br/>\n\nBest regards,<br/>\nRental cars service team.\n\n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
-d81ecda4-2e2c-401b-b5e5-52aff4d3f5b7	LIONEA CAR SERVICE - Password Update Notification	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Password Update Notification</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n    <div class="job-card" style="position:relative;\n                                  height:750px;\n                                  width:300px;\n                                  left:10%;\n                                  top:10%;\n                                  background-color: #000d6b;\n                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);\n                                  border-radius: 8px;\n                                  margin:20px;\n                                  padding:20px;\n                                  text-align:justify;\n                                  color:white;">\n        \n        <!-- Header Message -->\n           <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">\n            Password Updated Successfully!\n        </div>\n\n        <!-- Message Content -->\n        <div class="messagecls" style="position: relative;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        text-wrap: balance;\n                                        line-height: 1.6;\n                                        margin-top:50px;">\n            Dear ${name},<br/><br/>\n            We wanted to let you know that your password has been updated successfully. If you did not make this change, please contact our support team immediately.<br/><br/>\n\n            Here are some tips to keep your account secure:<br/>\n            - Use a strong password with a mix of letters, numbers, and special characters.<br/>\n            - Never share your password with anyone.<br/><br/>\n\n            If you have any questions or need assistance, feel free to reach out to us.<br/><br/>\n\n            Best regards,<br/>\n            The Rental Cars Service Team\n        </div>\n\n        <!-- Button -->\n        <div style="text-align:center;">\n            <a href="https://rentalcar.smartyuppies.com"\n               class="buttonCls" style="display:inline-block;\n                                        background-color:#0073b1;\n                                        color:white;\n                                        padding:10px 20px;\n                                        border-radius:5px;\n                                        text-decoration:none;\n                                        font-size:14px;\n                                        cursor:pointer;\n                                        margin-top: 20px;">\nWebsite\n            </a>\n        </div>\n    </div>\n</body>\n\n</html>
+d81ecda4-2e2c-401b-b5e5-52aff4d3f5b7	CAR RENTAL SERVICE - Password Update Notification	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Password Update Notification</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n    <div class="job-card" style="position:relative;\n                                  height:750px;\n                                  width:300px;\n                                  left:10%;\n                                  top:10%;\n                                  background-color: #000d6b;\n                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);\n                                  border-radius: 8px;\n                                  margin:20px;\n                                  padding:20px;\n                                  text-align:justify;\n                                  color:white;">\n        \n        <!-- Header Message -->\n           <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">\n            Password Updated Successfully!\n        </div>\n\n        <!-- Message Content -->\n        <div class="messagecls" style="position: relative;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        text-wrap: balance;\n                                        line-height: 1.6;\n                                        margin-top:50px;">\n            Dear ${name},<br/><br/>\n            We wanted to let you know that your password has been updated successfully. If you did not make this change, please contact our support team immediately.<br/><br/>\n\n            Here are some tips to keep your account secure:<br/>\n            - Use a strong password with a mix of letters, numbers, and special characters.<br/>\n            - Never share your password with anyone.<br/><br/>\n\n            If you have any questions or need assistance, feel free to reach out to us.<br/><br/>\n\n            Best regards,<br/>\n            The Rental Cars Service Team\n        </div>\n\n        <!-- Button -->\n        <div style="text-align:center;">\n            <a href="https://rentalcar.smartyuppies.com"\n               class="buttonCls" style="display:inline-block;\n                                        background-color:#0073b1;\n                                        color:white;\n                                        padding:10px 20px;\n                                        border-radius:5px;\n                                        text-decoration:none;\n                                        font-size:14px;\n                                        cursor:pointer;\n                                        margin-top: 20px;">\nWebsite\n            </a>\n        </div>\n    </div>\n</body>\n\n</html>
 c33b2113-b361-4c89-92fd-b8b42c793978	CAR RENTAL SERVICE - Profile Update	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:350px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 140px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">Hi ${name},<br/>\n     <b> Successfully Update your Profile Account</b>,\n      Now you have provision to book cars for your trip .                \n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
 542d8697-5a28-48f9-b0c6-030cf2f888fe	CAR RENTAL SERVICE - Car Reservation Confirmation	\n    @<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Car Reservation Confirmation</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n    <div class="job-card" style="position:relative;\n                                  height:1000px;\n                                  width:300px;\n                                  left:10%;\n                                  top:10%;\n                                  background-color: #000d6b;\n                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);\n                                  border-radius: 8px;\n                                  margin:20px;\n                                  padding:20px;\n                                  text-align:justify;\n                                  color:white;">\n        <!-- Header Message -->\n       \n        <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    "> Your Car Reservation is Confirmed!</div>\n\n        <!-- Reservation Details -->\n        <div class="messagecls" style="position: relative;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        text-wrap: balance;\n                                        line-height: 1.6;\n                                        margin-top:50px;">\n            Dear ${name},<br/><br/>\n            We are thrilled to confirm your car reservation! Below are your reservation details:<br/><br/>\n\n            <strong>Pickup Date & Time</strong>: ${fromDate} <br/>\n            <strong>Return Date & Time</strong>: ${toDate} <br/><br/>\n\n            <strong>Car Details:</strong><br/>            \n            <strong>Car Model</strong>: ${carName}<br/>\n            <strong>Car Number</strong>: ${carNo}<br/>\n            <strong>Total Payable</strong>: ${totalPayable}<br/>\n            <strong>DeliveryCharge/PickupCharge</strong>: ${deliveryOrPickupCharges} <br/><br/>\n\n            If you have any specific preferences or additional requests, feel free to reach out to us.<br/><br/>\n\n            We look forward to providing you with a smooth and comfortable car rental experience!<br/><br/>\n\n            Best regards,<br/>\n            The Rental Cars Service Team\n        </div>\n\n        <!-- Button -->\n        <div style="text-align:center;">\n            <a href="https://rentalcar.smartyuppies.com"\n               class="buttonCls" style="display:inline-block;\n                                        background-color:#0073b1;\n                                        color:white;\n                                        padding:10px 20px;\n                                        border-radius:5px;\n                                        text-decoration:none;\n                                        font-size:14px;\n                                        cursor:pointer;\n                                        margin-top: 10%">\nWebsite\n            </a>\n        </div>\n    </div>\n</body>\n</html>\n
 faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservation Alerted	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n    <div class="job-card" style="position:relative;\n        height:500px;\n        width:300px;\n        left:10%;\n        top:10%;\n        background-color: #000d6b;\n        box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n        border-radius: 8px;\n        text-align:justify;\n        margin:20px;\n        padding:20px;">\n        \n        <div class="headerMessage" style="position:relative;\n                                          height:10px;\n                                          width:80%;\n                                          margin-left:35px;    \n                                          color:white;\n                                          font-weight:bold;\n                                          margin-top:50px;">\n            Welcome to Rental Cars Service\n        </div>\n\n        <div class="messagecls" style="position: relative;\n                                        height: 240px;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        overflow:hidden;\n                                        margin-top:50px;\n                                        ">\n            Hi ${name},<br/>\n            <b>Your car has been successfully alerted!</b><br/>\n            <strong>Car Number:</strong> ${car_no}<br/>\n            <strong>From:</strong> ${fromDate}<br/>\n            <strong>To:</strong> ${toDate}<br/>\n            Thank you for choosing our rental service. We are preparing your vehicle for your upcoming trip.\n        </div>\n\n        <button class="buttonCls" style="position:relative\n        ;\n       \n                                           height:35px;\n                                           width:50%;\n                                           margin-left:35px;  \n                                           background-color: #0073b1;    \n                                           border: none;    \n                                           border-radius: 5px;\n                                           cursor: pointer;">\n            <a href="https://rentalcar.smartyuppies.com" style="color: white; text-decoration :none;">Website</a>\n        </button>\n    </div>\n</body>\n</\nhtml>
+05faaeb6-4356-4eb1-b140-9f4f85301ae8	CAR RENTAL SERVICE - Car Rental Feedback Information	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>Thank You for Your Feedback</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;background-color: #f2f2f2;">\n  \n  <div class="job-card" style="position:relative;\n    height:450px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    \n    <!-- Header Message -->\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                          \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Thank You for Your Feedback, ${name}!</div>\n    \n    <!-- Body Message -->\n    <div class="messagecls" style="position: relative;\n                                    height: 170px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    padding-bottom:75px;\n                                    margin-bottom:50px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    overflow:hidden;\n                                    margin-top:50px;\n                                    ">\n      <b>We truly appreciate your feedback.</b> It helps us continue to improve our services to better meet your needs. If you have any further thoughts or suggestions, feel free to reach out to us.\n      <br/><br/>\n      Thank you again for your input, and we look forward to serving you in the future.\n    </div>\n    \n    <!-- Button -->\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer;\n                                     \n                                     ">\n      <a href="https://rentalcar.smartyuppies.com" style="color: white; text-decoration: none;">Visit Website</a>\n    </button>\n  </div>\n</body>\n</html>
 \.
 
 
@@ -787,14 +773,10 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 --
 
 COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, branch) FROM stdin;
-bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-82787c45-468b-4f30-a140-5c3562918150	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-e58dd479-33b9-4875-838b-3fafeb0eb7b4	kdjfkj	kfkj	ksjfksj	Yes	e58dd479-33b9-4875-838b-3fafeb0eb7b4_hiring.png	Hatchback	5	No	Automatic	Diesel	300 KM	222	Chennai
-6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec	sfkjskfj	sfjss	,sjfjs	Yes	6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec_Screenshot%20(1).png	Hatchback	5	Yes	Automatic	Electric	300 KM	444	Chennai
-a02c0465-a863-487d-9a3b-cdf953e1499d	snfksnfk	skfksjk	sjfjksj	Yes	a02c0465-a863-487d-9a3b-cdf953e1499d_Screenshot%202023-08-23%20193113.png	Hatchback	5	Yes	Automatic	Petrol	300 KM	3333	Chennai
-3b5d1167-6370-4308-9e3e-ba71ed608dec	mercediz	Tex 3	1111	Yes	3b5d1167-6370-4308-9e3e-ba71ed608dec_audi_PNG1736.png	Sedan	5	Yes	Automatic	Petrol	400 KM	40000	Chennai
-bec18e0f-d41e-4315-83ee-a2b9f4726159	asdf	asd	asdf	No	bec18e0f-d41e-4315-83ee-a2b9f4726159_cha.png	luxury	5	Yes	Manual	Diesel	300 KM	12222	Madurai
-46158006-218c-44a5-8fc8-8e0fe326f64f	supra	x2	223	Yes	46158006-218c-44a5-8fc8-8e0fe326f64f_slider-1.png	luxury	5	Yes	Automatic	Diesel	300 KM	2000	Chennai
+102f7460-456a-4583-9bce-9ebdd648f7ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+dc612b8f-1b64-44eb-8976-022cbca3857e	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
+bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	ads	asdf	asdf	Yes	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	Hatchback	5	Yes	Manual	Petrol	300 KM	1234	Chennai
+daeaba55-3c83-42af-a027-4d9086f07383	asdf	asdf	asdf	No	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	Hatchback	5	No	Automatic	Petrol	300 KM	2444	Chennai
 \.
 
 
@@ -803,14 +785,10 @@ bec18e0f-d41e-4315-83ee-a2b9f4726159	asdf	asd	asdf	No	bec18e0f-d41e-4315-83ee-a2
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
-bec18e0f-d41e-4315-83ee-a2b9f4726159	C:/Users/dhasa/OneDrive/Desktop/uploads/	bec18e0f-d41e-4315-83ee-a2b9f4726159_cha.png	image/png	true
-e58dd479-33b9-4875-838b-3fafeb0eb7b4	C:/Users/dhasa/OneDrive/Desktop/uploads/	e58dd479-33b9-4875-838b-3fafeb0eb7b4_hiring.png	image/png	true
-6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec	C:/Users/dhasa/OneDrive/Desktop/uploads/	6a3327ae-25bb-43bd-a59a-c8b2d5dfc9ec_Screenshot (1).png	image/png	true
-a02c0465-a863-487d-9a3b-cdf953e1499d	C:/Users/dhasa/OneDrive/Desktop/uploads/	a02c0465-a863-487d-9a3b-cdf953e1499d_Screenshot 2023-08-23 193113.png	image/png	true
-bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45	C:/Users/dhasa/OneDrive/Desktop/uploads/	bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45_Screenshot 2023-09-28 185902.png	image/png	true
-82787c45-468b-4f30-a140-5c3562918150	C:/Users/dhasa/OneDrive/Desktop/uploads/	82787c45-468b-4f30-a140-5c3562918150_Screenshot 2023-09-28 185923.png	image/png	true
-3b5d1167-6370-4308-9e3e-ba71ed608dec	C:/Users/dhasa/OneDrive/Desktop/uploads/	3b5d1167-6370-4308-9e3e-ba71ed608dec_audi_PNG1736.png	image/png	true
-46158006-218c-44a5-8fc8-8e0fe326f64f	C:/Users/dhasa/OneDrive/Desktop/uploads/	46158006-218c-44a5-8fc8-8e0fe326f64f_slider-1.png	image/jpeg	true
+bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	C:/Users/Lenovo/Desktop/uploads/	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	image/png	true
+daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	image/png	true
+102f7460-456a-4583-9bce-9ebdd648f7ae	C:/Users/Lenovo/Desktop/uploads/	102f7460-456a-4583-9bce-9ebdd648f7ae_tesla.png	image/jpeg	true
+dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1b64-44eb-8976-022cbca3857e_tesla-removebg-preview.png	image/png	true
 \.
 
 
@@ -819,8 +797,9 @@ bbeb5dd6-f70d-4c51-8dec-ff6e95a11d45	C:/Users/dhasa/OneDrive/Desktop/uploads/	bb
 --
 
 COPY public.admin_software_user_details (user_id, password, email_id, mobile_no, role_name, branch) FROM stdin;
-admin	123	rajesh@smartyuppies.com	9090909090	Super Admin	Chennai
 dhasa	123	dhasa@gmail.com	1234567889	exexutive	Trichy
+asfd	1234	asdf	asdf	exexutive	Chennai
+admin	123	rajesh@smartyuppies.com	9090909090	Admin	Chennai
 \.
 
 
@@ -832,7 +811,7 @@ COPY public.admin_user_rights (id, role_name, rights_object) FROM stdin;
 64a3a800-fabb-4146-8f89-0172997a7fe5	exexutive	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""}}
 558f2ec2-365f-4a29-8e99-5331186dcfa9	Admin2	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":""},"Payment Rule":{"Multi-Day Booking":""}}
 a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""}}
-692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""},"Feedback":""}
+692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":""},"Feedback":""}
 \.
 
 
@@ -842,6 +821,9 @@ a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"
 
 COPY public.admin_view_holiday_car_booking_payment_rule (id, holiday_date, car_rent_amount_additional_percentage) FROM stdin;
 d0f55fde-d8aa-4bc0-b487-9949d34b2d54	2024-09-13 16:41:00	12
+567029c5-c89c-4826-a458-5750991d925a	2024-09-29 03:32:00	22
+958876b7-44bb-42fa-8f7f-7a74e2713a2c	2024-09-28 05:30:00	22
+26f1d8c9-6c48-4aa6-af74-761f140419ef	2024-09-20 05:30:00	22
 \.
 
 
@@ -850,7 +832,8 @@ d0f55fde-d8aa-4bc0-b487-9949d34b2d54	2024-09-13 16:41:00	12
 --
 
 COPY public.admin_view_multiple_day_car_booking_payment_rule (id, no_of_days, car_rent_amount_additional_percentage, adjust_type) FROM stdin;
-a79b5336-bb0a-454d-bb4d-a5ab3e4e8aba	12	10	Increase
+a79b5336-bb0a-454d-bb4d-a5ab3e4e8aba	3	20	Decrease
+0a5afdca-7bbf-486d-96d1-d04e3802d76f	3	3	Increase
 \.
 
 
@@ -872,10 +855,6 @@ COPY public.customer_booking_documents_details (id, customer_name, mobile_no, em
 c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	c8591ff7-fdec-427d-921a-c8e27b5b8535_118-proforma-Naivedhyam_Kannan_Iyengar.pdf	application/pdf	asdf
 57e95e89-bc80-438e-8e11-d967fc037568	K. Naveen	9090909090	kpnaveen1312@gmail.com	Driving License	\N	Driving License	C:/Users/Lenovo/Desktop/uploads/	57e95e89-bc80-438e-8e11-d967fc037568_tesla-removebg-preview.png	image/png	DSA
 6ceb0952-b264-46f1-8f93-7767ad81dfe8	K. Naveen	9090909090	kpnaveen1312@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	6ceb0952-b264-46f1-8f93-7767ad81dfe8_toyota-offer-2.png	image/png	asdfasdf
-a72a3fee-a4fa-402a-96d7-5553df1f1e16	melli	1212121212	melli@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	a72a3fee-a4fa-402a-96d7-5553df1f1e16_slider-1.jpg	image/jpeg	kskfjksjf
-8f6dc1ed-d010-4323-8dc5-8bd7a807bea2	melli	1212121212	melli@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/Lenovo/Desktop/uploads/	8f6dc1ed-d010-4323-8dc5-8bd7a807bea2_Home wallpaper.jpg	image/jpeg	kskfjksjfsjkfj
-4aec3c1c-0d10-400b-a344-bff0c7699b47	melli	1212121212	melli@gmail.com	Pan Card	\N	Pan Card	C:/Users/dhasa/OneDrive/Desktop/uploads/	4aec3c1c-0d10-400b-a344-bff0c7699b47_slider-1.jpg	image/jpeg	fdfdf
-463a923a-93d9-4b98-b1ed-44a1553a56ed	naveen	1313131313	kpnaveen1312@gmail.com	Aadhar Card	\N	Aadhar Card	C:/Users/dhasa/OneDrive/Desktop/uploads/	463a923a-93d9-4b98-b1ed-44a1553a56ed_slider-1.jpg	image/jpeg	1111
 \.
 
 
@@ -884,16 +863,6 @@ a72a3fee-a4fa-402a-96d7-5553df1f1e16	melli	1212121212	melli@gmail.com	Aadhar Car
 --
 
 COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, from_date, to_date, pick_up_type, delivery_or_pickup_charges, car_rent_charges, total_payable, approve_status, car_img_name, address, extra_info) FROM stdin;
-1c5d51f4-f07f-467a-aecd-a2ed5435b6bc	2024-10-01 05:23:00	naveen	1313131313	kpnaveen1312@gmail.com	223	x2	2024-10-02 05:01:00	2024-10-10 06:01:00	delivery	18000	500	18500	New Booking			
-4e9ff307-e3ae-4a73-9749-3f2d3ad36dd1	2024-10-01 05:23:00	naveen	1313131313	kpnaveen1312@gmail.com	223	x2	2024-10-02 05:01:00	2024-10-10 06:01:00		18000	500	18500	New Booking			
-92ab90ea-207c-42f5-bed4-43f615fab80c	2024-10-01 05:23:00	naveen	1313131313	kpnaveen1312@gmail.com	223	x2	2024-10-02 05:01:00	2024-10-10 06:01:00		18000	500	18500	New Booking			
-c53958d0-425f-4d95-818a-3de946e7b617	2024-10-01 05:24:00	naveen	1313131313	kpnaveen1312@gmail.com	223	x2	2024-10-02 05:01:00	2024-10-10 06:01:00		18000	500	18500	New Booking			
-498a4052-b390-4aaa-bc9d-be1a652fe5d4	2024-10-01 05:27:00	naveen	1313131313	kpnaveen1312@gmail.com	223	x2	2024-10-02 05:01:00	2024-10-10 06:01:00		18000	500	18500	New Booking			
-d80eedc3-b223-4f34-82ce-5b8403b53cf7	2024-10-01 05:32:00	naveen	1313131313	kpnaveen1312@gmail.com	1111	Tex 3	2024-10-02 05:01:00	2024-10-10 06:01:00	delivery	360000	500	360500	New Booking			
-028a6fc8-fc67-4e19-8c55-a18e9de635fd	2024-10-01 05:32:00	naveen	1313131313	kpnaveen1312@gmail.com	1111	Tex 3	2024-10-02 05:01:00	2024-10-10 06:01:00		360000	500	360500	New Booking			
-0df9ac60-2c0b-4402-a886-f92213b695a3	2024-10-01 05:32:00	naveen	1313131313	kpnaveen1312@gmail.com	1111	Tex 3	2024-10-02 05:01:00	2024-10-10 06:01:00		360000	500	360500	New Booking			
-9fa11e9c-c244-4bf0-8f6d-c402be0a9af2	2024-10-01 05:32:00	naveen	1313131313	kpnaveen1312@gmail.com	1111	Tex 3	2024-10-02 05:01:00	2024-10-10 06:01:00		360000	500	360500	New Booking			
-30c0cee1-7e24-460b-8a89-c7827c5cb0db	2024-10-01 05:33:00	naveen	1313131313	kpnaveen1312@gmail.com	1111	Tex 3	2024-10-02 05:01:00	2024-10-10 06:01:00		360000	500	360500	New Booking			
 \.
 
 
@@ -923,24 +892,11 @@ COPY public.customer_feedback_details (id, person_name, person_contact, person_d
 
 
 --
--- Data for Name: customer_profile_image_details; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.customer_profile_image_details (id, file_path, file_name, file_type) FROM stdin;
-1c966750-d54c-4e90-b764-bdbe0817073e	C:/Users/dhasa/OneDrive/Desktop/uploads/	1c966750-d54c-4e90-b764-bdbe0817073e_cha.png	image/png
-\.
-
-
---
 -- Data for Name: customer_registration_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_registration_details (id, name, password, mobile_no, alternative_mobile_no, age, email_id, sign_status) FROM stdin;
-7dffea67-a539-4807-8107-a6160216bbcd	Ravi	1234	7878787878	787878	78	787878@gmailcom	active
-52bc06ce-ba6c-42ff-840f-584aa65bc0a8	melli	1212	1212121212	1212121212	21	melli@gmail.com	active
-a537a47a-e5e4-4847-ba81-c4b5c0930f40	hari	1111	1111111111	1111111111	22	hari@gmail.com	active
-98908b68-91d0-4df8-92ea-56d9e5c9fc2d	saranraj	4545	4545454545	4545454545	33	saran@gmall.com	active
-bd2e1a2f-3fed-42ff-abf5-3e53e98fdf91	naveen	1313	1313131313	1414141414	21	kpnaveen1312@gmail.com	active
+COPY public.customer_registration_details (id, name, mobile_no, alternative_mobile_no, age, email_id, sign_status) FROM stdin;
+62dcd4a6-8912-42d7-9e3e-779b1c7c130f	Rajesh	8667310426	9090909090	77	rajesh@smartyuppies.com	active
 \.
 
 
@@ -948,8 +904,11 @@ bd2e1a2f-3fed-42ff-abf5-3e53e98fdf91	naveen	1313	1313131313	1414141414	21	kpnave
 -- Data for Name: profile_image_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.profile_image_details (id, file_name, file_path, file_type, profile_type) FROM stdin;
-52bc06ce-ba6c-42ff-840f-584aa65bc0a8	52bc06ce-ba6c-42ff-840f-584aa65bc0a8_slider-1.jpg	C:/Users/dhasa/OneDrive/Desktop/uploads/	image/jpeg	Customer
+COPY public.profile_image_details (id, file_path, file_name, file_type, profile_type) FROM stdin;
+Rajesh	C:/Users/Lenovo/Desktop/uploads/	Rajesh_Cryptocurrency - Bootstrap 5 Admin Template — Mozilla Firefox 25-09-2024 11_59_09.png	image/png	\N
+asfd	C:/Users/Lenovo/Desktop/uploads/	asfd_Screenshot (4).png	image/png	\N
+admin	C:/Users/Lenovo/Desktop/uploads/	admin_king_R.jpg	image/jpeg	\N
+1c966750-d54c-4e90-b764-bdbe0817073e	C:/Users/Lenovo/Desktop/uploads/	1c966750-d54c-4e90-b764-bdbe0817073e_loginBgCar.jpg	image/jpeg	Customer
 \.
 
 
@@ -1137,14 +1096,6 @@ ALTER TABLE ONLY public.customer_feedback_details
 
 ALTER TABLE ONLY public.customer_feedback
     ADD CONSTRAINT customer_feedback_pkey PRIMARY KEY (id);
-
-
---
--- Name: customer_profile_image_details customer_profile_image_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.customer_profile_image_details
-    ADD CONSTRAINT customer_profile_image_details_pkey PRIMARY KEY (id);
 
 
 --

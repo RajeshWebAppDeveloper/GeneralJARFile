@@ -26,7 +26,16 @@ CREATE TABLE customer_registration_details(
 	,sign_status VARCHAR
 );
 
-DROP TABLE admin_software_user_details;
+--drop table profile_image_details;
+CREATE TABLE profile_image_details(
+	id VARCHAR   PRIMARY KEY
+	,file_path VARCHAR		
+	,file_name VARCHAR
+	,file_type VARCHAR
+	,profile_type VARCHAR
+);
+
+--DROP TABLE admin_software_user_details;
 CREATE TABLE admin_software_user_details(
 	user_id VARCHAR   PRIMARY KEY
 	,password VARCHAR
@@ -45,7 +54,7 @@ CREATE TABLE admin_default_properties(
 );
 
 
-drop table admin_rental_cars_upload;
+--drop table admin_rental_cars_upload;
 CREATE TABLE admin_rental_cars_upload(
 	id UUID   PRIMARY KEY
 	,file_path VARCHAR		
@@ -54,7 +63,7 @@ CREATE TABLE admin_rental_cars_upload(
 	,convert_into_png_status VARCHAR
 );
 
-drop table admin_rental_cars_details;
+--DROP TABLE IF EXISTS admin_rental_cars_details CASCADE;
 CREATE TABLE admin_rental_cars_details(
 	id UUID   PRIMARY KEY
 	,brand VARCHAR		
@@ -69,6 +78,7 @@ CREATE TABLE admin_rental_cars_details(
 	,fuel_type VARCHAR	
 	,limit_km VARCHAR
 	,price_per_day VARCHAR
+	,branch VARCHAR
 );
 
 --DROP TYPE IF EXISTS customer_cars_info_list CASCADE;
@@ -87,13 +97,14 @@ CREATE TYPE customer_cars_info_list AS (
 	,fuel_type VARCHAR	
 	,limit_km VARCHAR
 	,price_per_day VARCHAR
+	,branch VARCHAR
 );
 
 --DROP FUNCTION IF EXISTS getRentARideCustomerCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR) CASCADE;
 
 
-SELECT * FROM getRentARideCustomerCarsList('Sedan','Petrol','Automatic','500 KM');	
-CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
+SELECT * FROM getRentARideCustomerCarsList('','','','','');	
+CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
 
 		DECLARE
 			customerCarsInfoList customer_cars_info_list;
@@ -114,16 +125,19 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(categoryArgs VARCHAR,fue
 					,m2.fuel_type 
 					,m2.limit_km 
 					,m2.price_per_day
+					,m2.branch
 				FROM
 					admin_rental_cars_upload m1
 					,admin_rental_cars_details m2
 				WHERE
 					m1.id = m2.id
-					AND m2.car_name is  NOT NUll
-					AND lower(m2.category) like lower(categoryArgs)||'%'
-					AND lower(m2.fuel_type) like lower(fuelType)||'%'
-					AND lower(m2.transmission_type) like lower(transmissionType)||'%'
-					AND lower(m2.limit_km) like lower(kmLimit)||'%'
+					AND m2.car_name is  NOT NUll					
+					AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
+					AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
+					AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
+					AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
+					AND lower(m2.limit_km) ILIKE ANY(string_to_array(lower(kmLimit)||'%',','))
+										
 			LOOP 
 
 				RETURN NEXT customerCarsInfoList;
@@ -299,13 +313,29 @@ CREATE TABLE customer_booking_documents_details (
 	,file_name VARCHAR
 	,file_type VARCHAR
 );
---DROP TABLE IF EXISTS driver_job_request CASCADE;
-CREATE TABLE driver_job_request (
-    id UUID  PRIMARY KEY
-    ,requester_name VARCHAR
-    ,requester_contact VARCHAR
-    ,message TEXT    
+--DROP TABLE IF EXISTS customer_feedback_details CASCADE;
+CREATE TABLE customer_feedback_details (
+    id UUID PRIMARY KEY,
+    person_name VARCHAR,
+    person_contact VARCHAR,
+    person_description TEXT,
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE OR REPLACE FUNCTION set_created_date() RETURNS TRIGGER AS $$
+	BEGIN
+	    IF NEW.created_date IS NULL THEN
+	        NEW.created_date := CURRENT_TIMESTAMP;
+	    END IF;
+	    RETURN NEW;
+	END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER before_insert_set_created_date BEFORE INSERT ON customer_feedback_details
+FOR EACH ROW
+EXECUTE FUNCTION set_created_date();
+
+
 
 --DROP TABLE IF EXISTS customer_car_rent_booking_details CASCADE;
 CREATE TABLE customer_car_rent_booking_details (
@@ -325,6 +355,7 @@ CREATE TABLE customer_car_rent_booking_details (
     ,approve_status VARCHAR
     ,car_img_name VARCHAR
     ,address VARCHAR
+    ,extra_info VARCHAR
  );
 
 
@@ -350,5 +381,46 @@ CREATE TABLE admin_user_rights(
 
 
 
+CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VARCHAR,toDate VARCHAR) RETURNS VARCHAR LANGUAGE plpgsql AS $$
+		DECLARE
+		    status VARCHAR := 'false';
+		    tCarNO1 VARCHAR;
+		    tCarNO2 VARCHAR;
+		BEGIN
+		    
+		    SELECT 
+		    	t1.car_no
+		    INTO
+		    	 tCarNO1
+		    FROM 
+		    	customer_car_rent_booking_details t1
+		    WHERE 
+		    	t1.car_no = carNO;
 
+		    IF tCarNO1 IS NULL THEN		        
+		        status := 'true';
+		    ELSE
+		        
+		        SELECT 
+		        	t2.car_no
+		        INTO 
+		        	tCarNO2
+		        FROM 
+		        	customer_car_rent_booking_details t2
+		        WHERE 
+		          t2.car_no = carNO
+		          AND t2.to_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')
+		          AND t2.from_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
+		          AND t2.approve_status = 'Car Returned';
 
+		        
+		        IF tCarNO2 IS NOT NULL THEN
+		            status := 'false';
+		        ELSE
+		            status := 'true';
+		        END IF;
+		    END IF;
+		    
+		    RETURN status;
+		END;
+$$;
