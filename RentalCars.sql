@@ -17,8 +17,7 @@ creating database in postgres
 --DROP TABLE customer_registration_details;
 CREATE TABLE customer_registration_details(
 	id UUID
-	,name VARCHAR
-	,password VARCHAR
+	,name VARCHAR	
 	,mobile_no VARCHAR
 	,alternative_mobile_no VARCHAR
 	,age VARCHAR
@@ -45,6 +44,7 @@ CREATE TABLE admin_software_user_details(
 	,branch VARCHAR
 	
 );
+
 insert into admin_software_user_details values('admin','123','rajesh@smartyuppies.com','9090909090','Super Admin','Chennai');
 --Drop table admin_default_properties;
 CREATE TABLE admin_default_properties(
@@ -76,76 +76,11 @@ CREATE TABLE admin_rental_cars_details(
 	,is_gps VARCHAR
 	,transmission_type VARCHAR
 	,fuel_type VARCHAR	
-	,limit_km VARCHAR
+	,extra_travel_km_per_price VARCHAR
 	,price_per_day VARCHAR
 	,branch VARCHAR
 );
 
---DROP TYPE IF EXISTS customer_cars_info_list CASCADE;
-
-CREATE TYPE customer_cars_info_list AS (
-    id UUID  
-	,brand VARCHAR		
-	,car_name VARCHAR
-	,car_no VARCHAR
-	,is_ac VARCHAR	
-	,img_url VARCHAR
-	,category VARCHAR
-	,no_of_seat VARCHAR
-	,is_gps VARCHAR
-	,transmission_type VARCHAR
-	,fuel_type VARCHAR	
-	,limit_km VARCHAR
-	,price_per_day VARCHAR
-	,branch VARCHAR
-);
-
---DROP FUNCTION IF EXISTS getRentARideCustomerCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR) CASCADE;
-
-
-SELECT * FROM getRentARideCustomerCarsList('','','','','');	
-CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
-
-		DECLARE
-			customerCarsInfoList customer_cars_info_list;
-
-		BEGIN
-			FOR customerCarsInfoList IN
-				SELECT 
-					m2.id 
-					,m2.brand
-					,m2.car_name
-					,m2.car_no 
-					,m2.is_ac 
-					,m1.file_name as img_url
-					,m2.category
-					,m2.no_of_seat
-					,m2.is_gps 
-					,m2.transmission_type
-					,m2.fuel_type 
-					,m2.limit_km 
-					,m2.price_per_day
-					,m2.branch
-				FROM
-					admin_rental_cars_upload m1
-					,admin_rental_cars_details m2
-				WHERE
-					m1.id = m2.id
-					AND m2.car_name is  NOT NUll					
-					AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
-					AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
-					AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
-					AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
-					AND lower(m2.limit_km) ILIKE ANY(string_to_array(lower(kmLimit)||'%',','))
-										
-			LOOP 
-
-				RETURN NEXT customerCarsInfoList;
-
-			END LOOP;
-		END
-
-$BODY$ LANGUAGE plpgsql VOlATILE COST 100;
 
 
 
@@ -189,8 +124,7 @@ CREATE OR REPLACE FUNCTION getCustomerBookingCalculatePayment(
 															) 
 															RETURNS SETOF customer_cars_rent_price_details AS $BODY$
 
-DECLARE
-    -- Declare variables
+DECLARE    
 
     customerCarsRentPriceDetails customer_cars_rent_price_details;
     noOfCustomerBookingDays NUMERIC := 0;
@@ -220,7 +154,7 @@ BEGIN
 
     /****************************** PRICE CALCULATION ****************************************/
     IF noOfCustomerBookingDays = 1 THEN
-        -- For single day booking, get additional charges
+        
         SELECT 
             ps.car_rent_amount_additional_percentage::NUMERIC
         INTO 
@@ -230,7 +164,7 @@ BEGIN
         WHERE 
             TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(cFromDate::DATE, 'DD/MM/YYYY');
         
-        -- Calculate total price with additional charges
+        
         
         IF holidayCarAdditionalChargesPercent IS NOT NULL THEN 
         	totalBookingPrice := carRentPricePerDay + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
@@ -379,7 +313,7 @@ CREATE TABLE admin_user_rights(
 	,rights_object JSON		
 );
 
-
+--SELECT checkCountCarBookingBefore('1111','2024-10-01 05:47:00.0','2024-10-01 06:47:00.0');
 
 CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VARCHAR,toDate VARCHAR) RETURNS VARCHAR LANGUAGE plpgsql AS $$
 		DECLARE
@@ -397,7 +331,8 @@ CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VAR
 		    WHERE 
 		    	t1.car_no = carNO;
 
-		    IF tCarNO1 IS NULL THEN		        
+		    IF tCarNO1 IS NULL THEN		   
+		    	RAISE NOTICE 'Booking Car Available Status: Its New';     
 		        status := 'true';
 		    ELSE
 		        
@@ -409,14 +344,16 @@ CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VAR
 		        	customer_car_rent_booking_details t2
 		        WHERE 
 		          t2.car_no = carNO
-		          AND t2.to_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')
-		          AND t2.from_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
+		          AND t2.to_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
+		          AND t2.to_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')		          
 		          AND t2.approve_status = 'Car Returned';
 
-		        
+		        RAISE NOTICE 'Booking Car Available Status %',tCarNO2;     
 		        IF tCarNO2 IS NOT NULL THEN
+		        	RAISE NOTICE 'Booking Car Available Status: Reserved';     
 		            status := 'false';
 		        ELSE
+		        	RAISE NOTICE 'Booking Car Available Status: Now Available';     
 		            status := 'true';
 		        END IF;
 		    END IF;
@@ -424,3 +361,110 @@ CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VAR
 		    RETURN status;
 		END;
 $$;
+
+SELECT checkCountCarBookingBefore('1111','2024-10-01 05:47:00.0','2024-10-01 06:47:00.0');
+
+--SELECT EXTRACT(DAY FROM ('2024-10-01 06:47:00.0'::TIMESTAMP - '2024-10-01 05:47:00.0'::TIMESTAMP)) AS days,EXTRACT(HOUR FROM ('2024-10-01 06:47:00.0'::TIMESTAMP - '2024-10-01 05:47:00.0'::TIMESTAMP)) AS hours
+
+
+
+--DROP TABLE IF EXISTS admin_view_price_plan_rule_details CASCADE;
+CREATE TABLE admin_view_price_plan_rule_details(
+	id UUID   PRIMARY KEY
+	,limit_km VARCHAR	
+	,car_rent_amount_additional_percentage VARCHAR	
+);
+
+
+
+--DROP FUNCTION IF EXISTS getRentARideCustomerCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR) CASCADE;
+
+
+--SELECT * FROM getRentARideCustomerCarsList('','','','','');	
+
+--DROP TYPE IF EXISTS customer_cars_info_list CASCADE;
+
+CREATE TYPE customer_cars_info_list AS (
+    id UUID  
+	,brand VARCHAR		
+	,car_name VARCHAR
+	,car_no VARCHAR
+	,is_ac VARCHAR	
+	,img_url VARCHAR
+	,category VARCHAR
+	,no_of_seat VARCHAR
+	,is_gps VARCHAR
+	,transmission_type VARCHAR
+	,fuel_type VARCHAR	
+	,extra_travel_km_per_day VARCHAR
+	,price_per_day VARCHAR
+	,branch VARCHAR
+);
+
+
+CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate VARCHAR,locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
+
+		 DECLARE
+        customerCarsInfoList customer_cars_info_list;
+        pricePlanRecord RECORD;
+        planKmPerHour NUMERIC := 0;
+        noOfHours NUMERIC := 0;
+    BEGIN
+        
+        SELECT 
+        	t1.*
+        INTO 
+        	pricePlanRecord
+        FROM 
+        	admin_view_price_plan_rule_details t1
+        WHERE 
+        	limit_km = kmLimit;
+        
+        planKmPerHour := (pricePlanRecord.limit_km / 24);
+
+        noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
+        
+        FOR customerCarsInfoList IN
+            SELECT
+                m2.id
+                ,m2.brand
+                ,m2.car_name
+                ,m2.car_no
+                ,m2.is_ac
+                ,m1.file_name AS img_url
+                ,m2.category
+                ,m2.no_of_seat
+                ,m4.no_of_km_per_given_date AS is_gps
+                ,m2.transmission_type
+                ,m2.fuel_type
+                ,m2.extra_travel_km_per_price
+                ,m4.car_rent_plan_price_per_given_date AS price_per_day
+                ,m2.branch
+            FROM
+                admin_rental_cars_upload m1
+            JOIN
+                admin_rental_cars_details m2 ON m1.id = m2.id
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ((m2.price_per_day::NUMERIC + (m2.price_per_day::NUMERIC * pricePlanRecord.car_rent_amount_additional_percentage::NUMERIC) / 100) / 24) AS car_rent_plan_price_per_hour
+            ) m3 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    (m3.car_rent_plan_price_per_hour * noOfHours) AS car_rent_plan_price_per_given_date
+                    ,(planKmPerHour * noOfHours) AS no_of_km_per_given_date
+            ) m4 ON TRUE
+            WHERE
+                m2.car_name IS NOT NULL
+                AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
+                AND lower(m2.category) ILIKE ANY (string_to_array(lower(categoryArgs) || '%', ','))
+                AND lower(m2.fuel_type) ILIKE ANY (string_to_array(lower(fuelType) || '%', ','))
+                AND lower(m2.transmission_type) ILIKE ANY (string_to_array(lower(transmissionType) || '%', ','))
+        LOOP
+            RETURN NEXT customerCarsInfoList;
+        END LOOP;
+    END;
+
+$BODY$ LANGUAGE plpgsql VOlATILE COST 100;
+
+
+
