@@ -43,11 +43,11 @@ CREATE TYPE public.customer_cars_info_list AS (
 	img_url character varying,
 	category character varying,
 	no_of_seat character varying,
-	is_gps character varying,
+	no_of_free_km_per_given_date numeric,
 	transmission_type character varying,
 	fuel_type character varying,
-	limit_km character varying,
-	price_per_day character varying,
+	extra_travel_km_per_price character varying,
+	price_based_on_date numeric,
 	branch character varying
 );
 
@@ -60,9 +60,12 @@ ALTER TYPE public.customer_cars_info_list OWNER TO postgres;
 
 CREATE TYPE public.customer_cars_rent_price_details AS (
 	id uuid,
-	car_rent_charges numeric,
+	plan_based_payable_charges numeric,
 	delivery_charges numeric,
-	total_payable numeric
+	secuirty_deposite_charges numeric,
+	no_of_leave_day_charges numeric,
+	charges_type character varying,
+	charges_type_based_amount numeric
 );
 
 
@@ -125,21 +128,25 @@ ALTER FUNCTION public.checkcountcarbookingbefore(carno character varying, fromda
 -- Name: getcustomerbookingcalculatepayment(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cpicktype character varying) RETURNS SETOF public.customer_cars_rent_price_details
+CREATE FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cplanbasedpayable character varying) RETURNS SETOF public.customer_cars_rent_price_details
     LANGUAGE plpgsql
     AS $$
 
-DECLARE
-    -- Declare variables
-
+DECLARE    
     customerCarsRentPriceDetails customer_cars_rent_price_details;
     noOfCustomerBookingDays NUMERIC := 0;
     carRentPricePerDay NUMERIC := 0;
-    holidayCarAdditionalChargesPercent NUMERIC := 0;
     multipleDayRuleRecord RECORD;
-    totalBookingPrice NUMERIC := 0;
     deliveryAmount NUMERIC := 0;
+    securityDepositAmount NUMERIC := 0;
     finalPrice NUMERIC := 0;
+
+    countDate DATE := cFromDate::DATE;
+    leaveDayBookingCharges NUMERIC := 0;
+    chargesType VARCHAR := 'Discount';
+    chargesTypeBasedAmount NUMERIC := 0;
+
+    holidayCarAdditionalChargesPercent NUMERIC := 0; -- Moved declaration outside the loop for consistency
 
 BEGIN
     /****************************** GET VALUE: NO OF BOOKING DAYS ****************************************/
@@ -158,9 +165,13 @@ BEGIN
     WHERE 
         rcd.car_no = cCarNumber;
 
-    /****************************** PRICE CALCULATION ****************************************/
-    IF noOfCustomerBookingDays = 1 THEN
-        -- For single day booking, get additional charges
+    RAISE NOTICE 'CAR RENT PRICE PER DAY: %', carRentPricePerDay;
+    /************************************ PRICE CALCULATION *********************************************/
+    
+    WHILE countDate <= cToDate::DATE LOOP
+
+        holidayCarAdditionalChargesPercent := 0; -- Reset the value in each iteration
+
         SELECT 
             ps.car_rent_amount_additional_percentage::NUMERIC
         INTO 
@@ -168,20 +179,26 @@ BEGIN
         FROM 
             admin_view_holiday_car_booking_payment_rule ps
         WHERE 
-            TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(cFromDate::DATE, 'DD/MM/YYYY');
-        
-        -- Calculate total price with additional charges
+            TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(countDate, 'DD/MM/YYYY');
         
         IF holidayCarAdditionalChargesPercent IS NOT NULL THEN 
-        totalBookingPrice := carRentPricePerDay + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
-        ELSIF holidayCarAdditionalChargesPercent IS NULL THEN 
-        totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
-END IF; 
+        RAISE NOTICE 'HOLIDAY CAR ADDITIONAL CHARGES PERCENT: %', holidayCarAdditionalChargesPercent;
+        RAISE NOTICE 'HOLIDAY CAR ADDITIONAL CHARGES PRICE AMOUNT: %', ROUND(carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
 
-        RAISE NOTICE 'TOTAL BOOKING PRICE FOR 1 DAY: %', totalBookingPrice;
+            leaveDayBookingCharges := ROUND(leaveDayBookingCharges + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100));        
 
-    ELSIF noOfCustomerBookingDays > 1 THEN
-    SELECT 
+            RAISE NOTICE 'countDate: %', countDate;
+        RAISE NOTICE 'leaveDayBookingCharges: %', leaveDayBookingCharges;
+        END IF;        
+        countDate := countDate + INTERVAL '1 day';
+
+    END LOOP;
+
+    RAISE NOTICE 'LEAVE DAYS BOOKING CHARGES: %', leaveDayBookingCharges;
+
+    IF noOfCustomerBookingDays > 1 THEN
+
+        SELECT 
             ps.*
         INTO 
             multipleDayRuleRecord
@@ -191,108 +208,146 @@ END IF;
             ps.no_of_days::NUMERIC = noOfCustomerBookingDays;
         
         IF multipleDayRuleRecord IS NOT NULL THEN 
-        IF multipleDayRuleRecord.adjust_type = 'Increase' THEN
-        totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) + (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
-        ELSIF multipleDayRuleRecord.adjust_type = 'Decrease' THEN
-        totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) - (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
-        END IF;        
-        ELSIF multipleDayRuleRecord IS NULL THEN 
-        totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
-END IF; 
+            IF multipleDayRuleRecord.adjust_type = 'Increase' THEN        
+                chargesType := 'Additional Charges';
+                chargesTypeBasedAmount := (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC / 100);
+            ELSIF multipleDayRuleRecord.adjust_type = 'Decrease' THEN
+                chargesType := 'Discount';
+                chargesTypeBasedAmount := (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC / 100);
+            END IF;
+        ELSE
+            chargesType := 'Additional Charges';
+            chargesTypeBasedAmount := 0;
+        END IF;
         
-        RAISE NOTICE 'TOTAL BOOKING PRICE FOR MULTIPLE DAYS: %', totalBookingPrice;
+        RAISE NOTICE 'CHARGES TYPE: %', chargesType;
+        RAISE NOTICE 'CHARGES TYPE BASED AMOUNT: %', chargesTypeBasedAmount;
     END IF;
 
     /****************************** DELIVERY CHARGES ****************************************/
-    IF lower(cPickType) = lower('delivery') THEN
-  SELECT
-  dp.property_value::NUMERIC
-  INTO
-  deliveryAmount
-  FROM
-  admin_default_properties dp     
-    WHERE
-    lower(property_name) = 'deliverycharges';
-    END IF;
     
-    RAISE NOTICE 'DELIVERY CHARGES: %', deliveryAmount;
+    SELECT
+        dp.property_value::NUMERIC
+    INTO
+        deliveryAmount
+    FROM
+        admin_default_properties dp     
+    WHERE
+        lower(property_name) = 'deliverycharges';
 
-    -- Calculate final price (total price + delivery amount)
-    finalPrice := totalBookingPrice + deliveryAmount;
+    RAISE NOTICE 'DELIVERY CHARGES: %', deliveryAmount;
+    
+    /****************************** SECURITY DEPOSIT CHARGES ****************************************/
+
+    SELECT
+        pd.property_value::NUMERIC
+    INTO
+        securityDepositAmount
+    FROM
+        admin_default_properties pd     
+    WHERE
+        lower(property_name) = 'secuirtydepositecharges';
+
+    RAISE NOTICE 'SECURITY DEPOSIT CHARGES: %', securityDepositAmount;
+
+    /********************************* FINAL OUTPUT ******************************************/
 
     FOR customerCarsRentPriceDetails IN
-SELECT 
-/*uuid_generate_v4() as id*/
-gen_random_uuid() as id
-,COALESCE(round(totalBookingPrice),0) as car_rent_charges
-            ,COALESCE(deliveryAmount,0) as delivery_charges
-            ,COALESCE(round(finalPrice),0) as total_payable
+        SELECT 
+            gen_random_uuid() as id
+            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges            
+            ,COALESCE(deliveryAmount, 0) as delivery_charges
+            ,COALESCE(securityDepositAmount, 0) as secuirty_deposite_charges
+            ,COALESCE(leaveDayBookingCharges, 0) as no_of_leave_day_charges
+            ,chargesType as charges_type
+            ,chargesTypeBasedAmount as charges_type_based_amount
+    LOOP 
+        RETURN NEXT customerCarsRentPriceDetails;
+    END LOOP;
 
-LOOP 
-
-RETURN NEXT customerCarsRentPriceDetails;
-
-END LOOP;
-    
-
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'An error occurred: %', SQLERRM;
+        RETURN;
 END;
 
 $$;
 
 
-ALTER FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cpicktype character varying) OWNER TO postgres;
+ALTER FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cplanbasedpayable character varying) OWNER TO postgres;
 
 --
--- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.getrentaridecustomercarslist(locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
+CREATE FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
     LANGUAGE plpgsql
     AS $$
 
 DECLARE
-customerCarsInfoList customer_cars_info_list;
+        customerCarsInfoList customer_cars_info_list;
+        pricePlanRecord RECORD;
+        planKmPerHour NUMERIC := 0;
+        noOfHours NUMERIC := 0;
+    BEGIN
+        
+        SELECT 
+        t1.*
+        INTO 
+        pricePlanRecord
+        FROM 
+        admin_view_price_plan_rule_details t1
+        WHERE 
+        limit_km = kmLimit;
+        
+        planKmPerHour := (pricePlanRecord.limit_km::NUMERIC / 24);
 
-BEGIN
-FOR customerCarsInfoList IN
-SELECT 
-m2.id 
-,m2.brand
-,m2.car_name
-,m2.car_no 
-,m2.is_ac 
-,m1.file_name as img_url
-,m2.category
-,m2.no_of_seat
-,m2.is_gps 
-,m2.transmission_type
-,m2.fuel_type 
-,m2.limit_km 
-,m2.price_per_day
-,m2.branch
-FROM
-admin_rental_cars_upload m1
-,admin_rental_cars_details m2
-WHERE
-m1.id = m2.id
-AND m2.car_name is  NOT NUll
-AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
-AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
-AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
-AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
-AND lower(m2.limit_km) ILIKE ANY(string_to_array(lower(kmLimit)||'%',','))
-
-LOOP 
-
-RETURN NEXT customerCarsInfoList;
-
-END LOOP;
-END
+        noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
+        
+        FOR customerCarsInfoList IN
+            SELECT
+                m2.id
+                ,m2.brand
+                ,m2.car_name
+                ,m2.car_no
+                ,m2.is_ac
+                ,m1.file_name AS img_url
+                ,m2.category
+                ,m2.no_of_seat
+                ,COALESCE(m4.no_of_free_km_per_given_date,0) as no_of_free_km_per_given_date
+                ,m2.transmission_type
+                ,m2.fuel_type
+                ,m2.extra_travel_km_per_price
+                ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
+                ,m2.branch
+            FROM
+                admin_rental_cars_upload m1
+            JOIN
+                admin_rental_cars_details m2 ON m1.id = m2.id
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ((m2.price_per_day::NUMERIC + (m2.price_per_day::NUMERIC * pricePlanRecord.car_rent_amount_additional_percentage::NUMERIC) / 100) / 24) AS car_rent_plan_price_per_hour
+            ) m3 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
+                    ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
+            ) m4 ON TRUE
+            WHERE
+                m2.car_name IS NOT NULL
+                AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
+                AND lower(m2.category) ILIKE ANY (string_to_array(lower(categoryArgs) || '%', ','))
+                AND lower(m2.fuel_type) ILIKE ANY (string_to_array(lower(fuelType) || '%', ','))
+                AND lower(m2.transmission_type) ILIKE ANY (string_to_array(lower(transmissionType) || '%', ','))
+        LOOP
+            RETURN NEXT customerCarsInfoList;
+        END LOOP;
+    END;
 
 $$;
 
 
-ALTER FUNCTION public.getrentaridecustomercarslist(locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
+ALTER FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
 
 --
 -- Name: set_created_date(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -312,6 +367,21 @@ $$;
 
 ALTER FUNCTION public.set_created_date() OWNER TO postgres;
 
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: a; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a (
+    total_hours numeric
+);
+
+
+ALTER TABLE public.a OWNER TO postgres;
+
 --
 -- Name: admin_cars_category_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
@@ -325,10 +395,6 @@ CREATE SEQUENCE public.admin_cars_category_seq
 
 
 ALTER SEQUENCE public.admin_cars_category_seq OWNER TO postgres;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
 
 --
 -- Name: admin_default_properties; Type: TABLE; Schema: public; Owner: postgres
@@ -374,7 +440,7 @@ CREATE TABLE public.admin_rental_cars_details (
     is_gps character varying(255),
     transmission_type character varying(255),
     fuel_type character varying(255),
-    limit_km character varying(255),
+    extra_travel_km_per_price character varying(255),
     price_per_day character varying(255),
     branch character varying(255)
 );
@@ -447,11 +513,25 @@ CREATE TABLE public.admin_view_multiple_day_car_booking_payment_rule (
     id uuid NOT NULL,
     no_of_days character varying(255),
     car_rent_amount_additional_percentage character varying(255),
-    adjust_type character varying(255)
+    adjust_type character varying(255),
+    limit_km character varying(255)
 );
 
 
 ALTER TABLE public.admin_view_multiple_day_car_booking_payment_rule OWNER TO postgres;
+
+--
+-- Name: admin_view_price_plan_rule_details; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.admin_view_price_plan_rule_details (
+    id uuid NOT NULL,
+    limit_km character varying(255),
+    car_rent_amount_additional_percentage character varying(255)
+);
+
+
+ALTER TABLE public.admin_view_price_plan_rule_details OWNER TO postgres;
 
 --
 -- Name: cars; Type: TABLE; Schema: public; Owner: postgres
@@ -532,6 +612,30 @@ CREATE TABLE public.customer_car_rent_booking_details (
 ALTER TABLE public.customer_car_rent_booking_details OWNER TO postgres;
 
 --
+-- Name: customer_cars_info_list_type; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.customer_cars_info_list_type (
+    id uuid NOT NULL,
+    branch character varying(255),
+    brand character varying(255),
+    car_name character varying(255),
+    car_no character varying(255),
+    category character varying(255),
+    extra_travel_km_per_price character varying(255),
+    fuel_type character varying(255),
+    img_url character varying(255),
+    no_of_free_km_per_given_date character varying(255),
+    no_of_seat character varying(255),
+    is_ac character varying(255),
+    price_based_on_date character varying(255),
+    transmission_type character varying(255)
+);
+
+
+ALTER TABLE public.customer_cars_info_list_type OWNER TO postgres;
+
+--
 -- Name: customer_cars_rent_price_details_type; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -539,7 +643,12 @@ CREATE TABLE public.customer_cars_rent_price_details_type (
     id uuid NOT NULL,
     car_rent_charges integer NOT NULL,
     delivery_charges character varying(255),
-    total_payable character varying(255)
+    total_payable character varying(255),
+    charges_type character varying(255),
+    charges_type_based_amount integer,
+    no_of_leave_day_charges integer,
+    plan_based_payable_charges integer,
+    secuirty_deposite_charges integer
 );
 
 
@@ -742,14 +851,24 @@ SELECT pg_catalog.lo_create('33319');
 ALTER LARGE OBJECT 33319 OWNER TO postgres;
 
 --
+-- Data for Name: a; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.a (total_hours) FROM stdin;
+52.5000000000000000
+\.
+
+
+--
 -- Data for Name: admin_default_properties; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.admin_default_properties (id, property_name, property_value, email_html_body, email_subject) FROM stdin;
 219ea9d9-e535-44b4-a826-d3d9af6efa5d	Branch	Chennai,Thiruvallur,Madurai,Trichy,Selam	\N	\N
 06c9aa96-a706-4adc-9722-2ce164299c2f	Category	Hatchback,SUV,MUV,luxury,Sedan	\N	\N
-e8fe4516-887d-42ec-9ff8-16eb3ec38e4c	DeliveryCharges	500	\N	\N
-a2118d07-c164-41a9-bd0d-5d261fd4cc62	Km Limit	300 KM,400 KM,450Km	\N	\N
+a2118d07-c164-41a9-bd0d-5d261fd4cc62	Extra Travel Price Per Km	11,8,15	\N	\N
+e8fe4516-887d-42ec-9ff8-16eb3ec38e4c	DeliveryCharges	1000	\N	\N
+ad98589b-2142-4b1a-bf44-984f8f95b8ba	SecuirtyDepositeCharges	1500	\N	\N
 \.
 
 
@@ -772,11 +891,9 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 -- Data for Name: admin_rental_cars_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, limit_km, price_per_day, branch) FROM stdin;
-102f7460-456a-4583-9bce-9ebdd648f7ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-dc612b8f-1b64-44eb-8976-022cbca3857e	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
-bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	ads	asdf	asdf	Yes	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	Hatchback	5	Yes	Manual	Petrol	300 KM	1234	Chennai
-daeaba55-3c83-42af-a027-4d9086f07383	asdf	asdf	asdf	No	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	Hatchback	5	No	Automatic	Petrol	300 KM	2444	Chennai
+COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, extra_travel_km_per_price, price_per_day, branch) FROM stdin;
+cf19aadf-5d0d-40b8-83c8-08f5f2945589	adsf	af	2100	Yes	cf19aadf-5d0d-40b8-83c8-08f5f2945589_titleIcon.png	Hatchback	5	Yes	Automatic	Diesel	11	1000	Chennai
+d3fb84a9-d63c-4398-b3c8-4611bb00b147	asdf	ae	as3	No	d3fb84a9-d63c-4398-b3c8-4611bb00b147_RentARide.png	Hatchback	5	Yes	Automatic	Diesel	11	2000	Chennai
 \.
 
 
@@ -785,10 +902,20 @@ daeaba55-3c83-42af-a027-4d9086f07383	asdf	asdf	asdf	No	daeaba55-3c83-42af-a027-4
 --
 
 COPY public.admin_rental_cars_upload (id, file_path, file_name, file_type, convert_into_png_status) FROM stdin;
+d3fb84a9-d63c-4398-b3c8-4611bb00b147	C:/Users/Lenovo/Desktop/uploads/	d3fb84a9-d63c-4398-b3c8-4611bb00b147_RentARide.png	image/png	true
 bb56874b-d90a-4a79-bb2b-36d3f04c9e0b	C:/Users/Lenovo/Desktop/uploads/	bb56874b-d90a-4a79-bb2b-36d3f04c9e0b_nissan-offer.png	image/png	true
 daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3c83-42af-a027-4d9086f07383_offer-toyota.png	image/png	true
 102f7460-456a-4583-9bce-9ebdd648f7ae	C:/Users/Lenovo/Desktop/uploads/	102f7460-456a-4583-9bce-9ebdd648f7ae_tesla.png	image/jpeg	true
 dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1b64-44eb-8976-022cbca3857e_tesla-removebg-preview.png	image/png	true
+cf19aadf-5d0d-40b8-83c8-08f5f2945589	C:/Users/Lenovo/Desktop/uploads/	cf19aadf-5d0d-40b8-83c8-08f5f2945589_titleIcon.png	image/jpeg	true
+70de9806-4a81-4010-9521-332a99e32f8d	C:/Users/Lenovo/Desktop/uploads/	70de9806-4a81-4010-9521-332a99e32f8d_Screenshot (9).png	image/png	true
+5d8b8c44-fd92-4e8b-a840-520eba315829	C:/Users/Lenovo/Desktop/uploads/	5d8b8c44-fd92-4e8b-a840-520eba315829_Screenshot (1).png	image/png	true
+9f2be207-3d2c-49c5-8ac6-af66ca4d38ec	C:/Users/Lenovo/Desktop/uploads/	9f2be207-3d2c-49c5-8ac6-af66ca4d38ec_Screenshot (2).png	image/png	true
+da790632-5b20-4ba5-9e99-d1eb02b75432	C:/Users/Lenovo/Desktop/uploads/	da790632-5b20-4ba5-9e99-d1eb02b75432_Screenshot (3).png	image/png	true
+c1c952bd-e76c-4904-88c2-789bd5236310	C:/Users/Lenovo/Desktop/uploads/	c1c952bd-e76c-4904-88c2-789bd5236310_loginBgCar.png	image/jpeg	true
+02592eb7-d040-4a23-b2ce-1286f7c7d4f5	C:/Users/Lenovo/Desktop/uploads/	02592eb7-d040-4a23-b2ce-1286f7c7d4f5_loginBgCar.png	image/jpeg	true
+017ac9b7-41ce-4017-ab06-4f01d535c401	C:/Users/Lenovo/Desktop/uploads/	017ac9b7-41ce-4017-ab06-4f01d535c401_loginBgCar.png	image/jpeg	true
+8b80e4d7-369e-46ff-afe4-933eea53e1e0	C:/Users/Lenovo/Desktop/uploads/	8b80e4d7-369e-46ff-afe4-933eea53e1e0_loginBgCar.png	image/jpeg	true
 \.
 
 
@@ -799,7 +926,7 @@ dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1
 COPY public.admin_software_user_details (user_id, password, email_id, mobile_no, role_name, branch) FROM stdin;
 dhasa	123	dhasa@gmail.com	1234567889	exexutive	Trichy
 asfd	1234	asdf	asdf	exexutive	Chennai
-admin	123	rajesh@smartyuppies.com	9090909090	Admin	Chennai
+admin	123	rajesh@smartyuppies.com	9090909090	Super Admin	Chennai
 \.
 
 
@@ -811,7 +938,7 @@ COPY public.admin_user_rights (id, role_name, rights_object) FROM stdin;
 64a3a800-fabb-4146-8f89-0172997a7fe5	exexutive	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""}}
 558f2ec2-365f-4a29-8e99-5331186dcfa9	Admin2	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":""},"Payment Rule":{"Multi-Day Booking":""}}
 a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""}}
-692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":""},"Feedback":""}
+692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Price Plans":"","Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":""},"Feedback":""}
 \.
 
 
@@ -821,9 +948,9 @@ a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"
 
 COPY public.admin_view_holiday_car_booking_payment_rule (id, holiday_date, car_rent_amount_additional_percentage) FROM stdin;
 d0f55fde-d8aa-4bc0-b487-9949d34b2d54	2024-09-13 16:41:00	12
-567029c5-c89c-4826-a458-5750991d925a	2024-09-29 03:32:00	22
 958876b7-44bb-42fa-8f7f-7a74e2713a2c	2024-09-28 05:30:00	22
 26f1d8c9-6c48-4aa6-af74-761f140419ef	2024-09-20 05:30:00	22
+45ef54c3-6004-491e-a057-a6e86623127a	2024-10-05 05:30:00	10
 \.
 
 
@@ -831,9 +958,19 @@ d0f55fde-d8aa-4bc0-b487-9949d34b2d54	2024-09-13 16:41:00	12
 -- Data for Name: admin_view_multiple_day_car_booking_payment_rule; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.admin_view_multiple_day_car_booking_payment_rule (id, no_of_days, car_rent_amount_additional_percentage, adjust_type) FROM stdin;
-a79b5336-bb0a-454d-bb4d-a5ab3e4e8aba	3	20	Decrease
-0a5afdca-7bbf-486d-96d1-d04e3802d76f	3	3	Increase
+COPY public.admin_view_multiple_day_car_booking_payment_rule (id, no_of_days, car_rent_amount_additional_percentage, adjust_type, limit_km) FROM stdin;
+a79b5336-bb0a-454d-bb4d-a5ab3e4e8aba	3	20	Decrease	\N
+0a5afdca-7bbf-486d-96d1-d04e3802d76f	3	3	Increase	\N
+\.
+
+
+--
+-- Data for Name: admin_view_price_plan_rule_details; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.admin_view_price_plan_rule_details (id, limit_km, car_rent_amount_additional_percentage) FROM stdin;
+8f1c0640-4261-4058-8a21-937131cc051d	320	20
+0d2dcf4a-d0b0-4fd2-85a7-844a830c91dd	140	10
 \.
 
 
@@ -867,10 +1004,18 @@ COPY public.customer_car_rent_booking_details (id, created_date, customer_name, 
 
 
 --
+-- Data for Name: customer_cars_info_list_type; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.customer_cars_info_list_type (id, branch, brand, car_name, car_no, category, extra_travel_km_per_price, fuel_type, img_url, no_of_free_km_per_given_date, no_of_seat, is_ac, price_based_on_date, transmission_type) FROM stdin;
+\.
+
+
+--
 -- Data for Name: customer_cars_rent_price_details_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable) FROM stdin;
+COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable, charges_type, charges_type_based_amount, no_of_leave_day_charges, plan_based_payable_charges, secuirty_deposite_charges) FROM stdin;
 \.
 
 
@@ -1059,6 +1204,14 @@ ALTER TABLE ONLY public.admin_view_multiple_day_car_booking_payment_rule
 
 
 --
+-- Name: admin_view_price_plan_rule_details admin_view_price_plan_rule_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.admin_view_price_plan_rule_details
+    ADD CONSTRAINT admin_view_price_plan_rule_details_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: customer_booking_documents_details customer_booking_documents_details_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -1072,6 +1225,14 @@ ALTER TABLE ONLY public.customer_booking_documents_details
 
 ALTER TABLE ONLY public.customer_car_rent_booking_details
     ADD CONSTRAINT customer_car_rent_booking_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: customer_cars_info_list_type customer_cars_info_list_type_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.customer_cars_info_list_type
+    ADD CONSTRAINT customer_cars_info_list_type_pkey PRIMARY KEY (id);
 
 
 --

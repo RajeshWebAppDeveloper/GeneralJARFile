@@ -101,138 +101,6 @@ CREATE TABLE admin_view_multiple_day_car_booking_payment_rule(
 
 
 
---DROP TYPE IF EXISTS customer_cars_rent_price_details CASCADE;
-
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE TYPE customer_cars_rent_price_details AS (
-	id UUID
-	,car_rent_charges NUMERIC
-    ,delivery_charges NUMERIC
-    ,total_payable NUMERIC
-);
-
---DROP FUNCTION getCustomerBookingCalculatePayment(VARCHAR,VARCHAR,VARCHAR,VARCHAR);
-
- --SELECT * FROM getCustomerBookingCalculatePayment('2024-09-11 04:34','2024-09-11 10:34','RA 78 HQ 2343','Delivery');
-
-
-CREATE OR REPLACE FUNCTION getCustomerBookingCalculatePayment(
-															    cFromDate VARCHAR,
-															    cToDate VARCHAR,
-															    cCarNumber VARCHAR,
-															    cPickType VARCHAR
-															) 
-															RETURNS SETOF customer_cars_rent_price_details AS $BODY$
-
-DECLARE    
-
-    customerCarsRentPriceDetails customer_cars_rent_price_details;
-    noOfCustomerBookingDays NUMERIC := 0;
-    carRentPricePerDay NUMERIC := 0;
-    holidayCarAdditionalChargesPercent NUMERIC := 0;
-    multipleDayRuleRecord RECORD;
-    totalBookingPrice NUMERIC := 0;
-    deliveryAmount NUMERIC := 0;
-    finalPrice NUMERIC := 0;
-
-BEGIN
-    /****************************** GET VALUE: NO OF BOOKING DAYS ****************************************/
-    SELECT 
-        (cToDate::DATE - cFromDate::DATE) + 1
-    INTO 
-        noOfCustomerBookingDays;
-
-    /****************************** GET VALUE: CAR PRICE PER DAY ****************************************/
-    SELECT 
-        rcd.price_per_day::NUMERIC
-    INTO 
-        carRentPricePerDay
-    FROM 
-        admin_rental_cars_details rcd
-    WHERE 
-        rcd.car_no = cCarNumber;
-
-    /****************************** PRICE CALCULATION ****************************************/
-    IF noOfCustomerBookingDays = 1 THEN
-        
-        SELECT 
-            ps.car_rent_amount_additional_percentage::NUMERIC
-        INTO 
-            holidayCarAdditionalChargesPercent
-        FROM 
-            admin_view_holiday_car_booking_payment_rule ps
-        WHERE 
-            TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(cFromDate::DATE, 'DD/MM/YYYY');
-        
-        
-        
-        IF holidayCarAdditionalChargesPercent IS NOT NULL THEN 
-        	totalBookingPrice := carRentPricePerDay + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
-        ELSIF holidayCarAdditionalChargesPercent IS NULL THEN 
-        	totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
-		END IF; 
-
-        RAISE NOTICE 'TOTAL BOOKING PRICE FOR 1 DAY: %', totalBookingPrice;
-
-    ELSIF noOfCustomerBookingDays > 1 THEN
-    	SELECT 
-            ps.*
-        INTO 
-            multipleDayRuleRecord
-        FROM 
-            admin_view_multiple_day_car_booking_payment_rule ps
-        WHERE 
-            ps.no_of_days::NUMERIC = noOfCustomerBookingDays;
-        
-        IF multipleDayRuleRecord IS NOT NULL THEN 
-        	IF multipleDayRuleRecord.adjust_type = 'Increase' THEN
-        		totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) + (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
-        	ELSIF multipleDayRuleRecord.adjust_type = 'Decrease' THEN
-        		totalBookingPrice := ((carRentPricePerDay * noOfCustomerBookingDays) - (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC/ 100));
-        	END IF;        	
-        ELSIF multipleDayRuleRecord IS NULL THEN 
-        	totalBookingPrice := (carRentPricePerDay * noOfCustomerBookingDays);
-		END IF; 		
-        
-        RAISE NOTICE 'TOTAL BOOKING PRICE FOR MULTIPLE DAYS: %', totalBookingPrice;
-    END IF;
-
-    /****************************** DELIVERY CHARGES ****************************************/
-    IF lower(cPickType) = lower('delivery') THEN
-  		SELECT
-  			dp.property_value::NUMERIC
-  		INTO
-  			deliveryAmount
-  		FROM
-  			admin_default_properties dp     
-    	WHERE
-    		lower(property_name) = 'deliverycharges';
-    END IF;
-    
-    RAISE NOTICE 'DELIVERY CHARGES: %', deliveryAmount;
-
-    -- Calculate final price (total price + delivery amount)
-    finalPrice := totalBookingPrice + deliveryAmount;
-
-    FOR customerCarsRentPriceDetails IN
-		SELECT 
-			/*uuid_generate_v4() as id*/
-			gen_random_uuid() as id
-			,COALESCE(round(totalBookingPrice),0) as car_rent_charges
-            ,COALESCE(deliveryAmount,0) as delivery_charges
-            ,COALESCE(round(finalPrice),0) as total_payable
-		
-	LOOP 
-
-		RETURN NEXT customerCarsRentPriceDetails;
-
-	END LOOP;
-    
-
-END;
-
-$BODY$ LANGUAGE plpgsql VOlATILE COST 100;
-
 
 --DROP TABLE IF EXISTS customer_booking_documents_details CASCADE;
 CREATE TABLE customer_booking_documents_details (
@@ -377,7 +245,7 @@ CREATE TABLE admin_view_price_plan_rule_details(
 
 
 
---DROP FUNCTION IF EXISTS getRentARideCustomerCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR) CASCADE;
+--DROP FUNCTION IF EXISTS getRentARideCustomerCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR) CASCADE;
 
 
 --SELECT * FROM getRentARideCustomerCarsList('','','','','');	
@@ -393,18 +261,20 @@ CREATE TYPE customer_cars_info_list AS (
 	,img_url VARCHAR
 	,category VARCHAR
 	,no_of_seat VARCHAR
-	,is_gps VARCHAR
+	,no_of_free_km_per_given_date NUMERIC
 	,transmission_type VARCHAR
 	,fuel_type VARCHAR	
-	,extra_travel_km_per_day VARCHAR
-	,price_per_day VARCHAR
+	,extra_travel_km_per_price VARCHAR
+	,price_based_on_date NUMERIC
 	,branch VARCHAR
 );
 
+--SELECT * FROM getRentARideCustomerCarsList('2024-09-01 01:00','2024-09-01 04:00','Chennai','Hatchback','Diesel','Automatic','140');
+--SELECT price_per_day as given_date_plan_price,is_gps as free_km FROM getRentARideCustomerCarsList('2024-09-01 01:00:00','2024-09-02 01:00:00','Chennai','Hatchback','Diesel','Automatic','320');
 
 CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate VARCHAR,locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
 
-		 DECLARE
+	DECLARE
         customerCarsInfoList customer_cars_info_list;
         pricePlanRecord RECORD;
         planKmPerHour NUMERIC := 0;
@@ -420,7 +290,7 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate 
         WHERE 
         	limit_km = kmLimit;
         
-        planKmPerHour := (pricePlanRecord.limit_km / 24);
+        planKmPerHour := (pricePlanRecord.limit_km::NUMERIC / 24);
 
         noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
         
@@ -434,11 +304,11 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate 
                 ,m1.file_name AS img_url
                 ,m2.category
                 ,m2.no_of_seat
-                ,m4.no_of_km_per_given_date AS is_gps
+                ,COALESCE(m4.no_of_free_km_per_given_date,0) as no_of_free_km_per_given_date
                 ,m2.transmission_type
                 ,m2.fuel_type
                 ,m2.extra_travel_km_per_price
-                ,m4.car_rent_plan_price_per_given_date AS price_per_day
+                ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
                 ,m2.branch
             FROM
                 admin_rental_cars_upload m1
@@ -450,8 +320,8 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate 
             ) m3 ON TRUE
             LEFT OUTER JOIN LATERAL (
                 SELECT
-                    (m3.car_rent_plan_price_per_hour * noOfHours) AS car_rent_plan_price_per_given_date
-                    ,(planKmPerHour * noOfHours) AS no_of_km_per_given_date
+                    ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
+                    ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
             ) m4 ON TRUE
             WHERE
                 m2.car_name IS NOT NULL
@@ -468,3 +338,169 @@ $BODY$ LANGUAGE plpgsql VOlATILE COST 100;
 
 
 
+
+--DROP TYPE IF EXISTS customer_cars_rent_price_details CASCADE;
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE TYPE customer_cars_rent_price_details AS (
+	id UUID
+	,plan_based_payable_charges NUMERIC
+    ,delivery_charges NUMERIC
+    ,secuirty_deposite_charges NUMERIC
+    ,no_of_leave_day_charges NUMERIC
+    ,charges_type VARCHAR
+    ,charges_type_based_amount NUMERIC
+);
+
+--DROP FUNCTION getCustomerBookingCalculatePayment(VARCHAR,VARCHAR,VARCHAR,VARCHAR);
+
+ --SELECT * FROM getCustomerBookingCalculatePayment('2024-10-04 04:34','2024-10-11 10:34','2100','2000');
+
+CREATE OR REPLACE FUNCTION getCustomerBookingCalculatePayment(
+															    cFromDate VARCHAR,
+															    cToDate VARCHAR,
+															    cCarNumber VARCHAR,
+															    cPlanBasedPayable VARCHAR
+															) 
+															RETURNS SETOF customer_cars_rent_price_details AS $BODY$
+
+DECLARE    
+    customerCarsRentPriceDetails customer_cars_rent_price_details;
+    noOfCustomerBookingDays NUMERIC := 0;
+    carRentPricePerDay NUMERIC := 0;
+    multipleDayRuleRecord RECORD;
+    deliveryAmount NUMERIC := 0;
+    securityDepositAmount NUMERIC := 0;
+    finalPrice NUMERIC := 0;
+
+    countDate DATE := cFromDate::DATE;
+    leaveDayBookingCharges NUMERIC := 0;
+    chargesType VARCHAR := 'Discount';
+    chargesTypeBasedAmount NUMERIC := 0;
+
+    holidayCarAdditionalChargesPercent NUMERIC := 0; -- Moved declaration outside the loop for consistency
+
+BEGIN
+    /****************************** GET VALUE: NO OF BOOKING DAYS ****************************************/
+    SELECT 
+        (cToDate::DATE - cFromDate::DATE) + 1
+    INTO 
+        noOfCustomerBookingDays;
+
+    /****************************** GET VALUE: CAR PRICE PER DAY ****************************************/
+    SELECT 
+        rcd.price_per_day::NUMERIC
+    INTO 
+        carRentPricePerDay
+    FROM 
+        admin_rental_cars_details rcd
+    WHERE 
+        rcd.car_no = cCarNumber;
+
+    RAISE NOTICE 'CAR RENT PRICE PER DAY: %', carRentPricePerDay;
+    /************************************ PRICE CALCULATION *********************************************/
+    
+    WHILE countDate <= cToDate::DATE LOOP
+
+        holidayCarAdditionalChargesPercent := 0; -- Reset the value in each iteration
+
+        SELECT 
+            ps.car_rent_amount_additional_percentage::NUMERIC
+        INTO 
+            holidayCarAdditionalChargesPercent
+        FROM 
+            admin_view_holiday_car_booking_payment_rule ps
+        WHERE 
+            TO_CHAR(ps.holiday_date, 'DD/MM/YYYY') = TO_CHAR(countDate, 'DD/MM/YYYY');
+        
+        IF holidayCarAdditionalChargesPercent IS NOT NULL THEN 
+        	RAISE NOTICE 'HOLIDAY CAR ADDITIONAL CHARGES PERCENT: %', holidayCarAdditionalChargesPercent;
+        	RAISE NOTICE 'HOLIDAY CAR ADDITIONAL CHARGES PRICE AMOUNT: %', ROUND(carRentPricePerDay * holidayCarAdditionalChargesPercent / 100);
+
+            leaveDayBookingCharges := ROUND(leaveDayBookingCharges + (carRentPricePerDay * holidayCarAdditionalChargesPercent / 100));        
+
+            RAISE NOTICE 'countDate: %', countDate;
+        	RAISE NOTICE 'leaveDayBookingCharges: %', leaveDayBookingCharges;
+        END IF;        
+        countDate := countDate + INTERVAL '1 day';
+
+    END LOOP;
+
+    RAISE NOTICE 'LEAVE DAYS BOOKING CHARGES: %', leaveDayBookingCharges;
+
+    IF noOfCustomerBookingDays > 1 THEN
+
+        SELECT 
+            ps.*
+        INTO 
+            multipleDayRuleRecord
+        FROM 
+            admin_view_multiple_day_car_booking_payment_rule ps
+        WHERE 
+            ps.no_of_days::NUMERIC = noOfCustomerBookingDays;
+        
+        IF multipleDayRuleRecord IS NOT NULL THEN 
+            IF multipleDayRuleRecord.adjust_type = 'Increase' THEN        		
+                chargesType := 'Additional Charges';
+                chargesTypeBasedAmount := (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC / 100);
+            ELSIF multipleDayRuleRecord.adjust_type = 'Decrease' THEN
+                chargesType := 'Discount';
+                chargesTypeBasedAmount := (carRentPricePerDay * multipleDayRuleRecord.car_rent_amount_additional_percentage::NUMERIC / 100);
+            END IF;
+        ELSE
+            chargesType := 'Additional Charges';
+            chargesTypeBasedAmount := 0;
+        END IF;
+        
+        RAISE NOTICE 'CHARGES TYPE: %', chargesType;
+        RAISE NOTICE 'CHARGES TYPE BASED AMOUNT: %', chargesTypeBasedAmount;
+    END IF;
+
+    /****************************** DELIVERY CHARGES ****************************************/
+    
+    SELECT
+        dp.property_value::NUMERIC
+    INTO
+        deliveryAmount
+    FROM
+        admin_default_properties dp     
+    WHERE
+        lower(property_name) = 'deliverycharges';
+
+    RAISE NOTICE 'DELIVERY CHARGES: %', deliveryAmount;
+    
+    /****************************** SECURITY DEPOSIT CHARGES ****************************************/
+
+    SELECT
+        pd.property_value::NUMERIC
+    INTO
+        securityDepositAmount
+    FROM
+        admin_default_properties pd     
+    WHERE
+        lower(property_name) = 'secuirtydepositecharges';
+
+    RAISE NOTICE 'SECURITY DEPOSIT CHARGES: %', securityDepositAmount;
+
+    /********************************* FINAL OUTPUT ******************************************/
+
+    FOR customerCarsRentPriceDetails IN
+        SELECT 
+            gen_random_uuid() as id					
+            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges            
+            ,COALESCE(deliveryAmount, 0) as delivery_charges
+            ,COALESCE(securityDepositAmount, 0) as secuirty_deposite_charges
+            ,COALESCE(leaveDayBookingCharges, 0) as no_of_leave_day_charges
+            ,chargesType as charges_type
+            ,chargesTypeBasedAmount as charges_type_based_amount
+    LOOP 
+        RETURN NEXT customerCarsRentPriceDetails;
+    END LOOP;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'An error occurred: %', SQLERRM;
+        RETURN;
+END;
+
+$BODY$ LANGUAGE plpgsql VOLATILE COST 100;
