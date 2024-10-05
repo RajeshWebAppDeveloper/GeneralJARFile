@@ -246,6 +246,7 @@ CREATE TYPE customer_cars_info_list AS (
 --SELECT * FROM getRentARideCustomerCarsList('2024-09-01 01:00','2024-09-01 04:00','Chennai','Hatchback','Diesel','Automatic','140');
 --SELECT price_per_day as given_date_plan_price,is_gps as free_km FROM getRentARideCustomerCarsList('2024-09-01 01:00:00','2024-09-02 01:00:00','Chennai','Hatchback','Diesel','Automatic','320');
 
+
 CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate VARCHAR,locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
 
 	DECLARE
