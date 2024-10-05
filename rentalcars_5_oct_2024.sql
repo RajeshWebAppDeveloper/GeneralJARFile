@@ -61,6 +61,7 @@ ALTER TYPE public.customer_cars_info_list OWNER TO postgres;
 CREATE TYPE public.customer_cars_rent_price_details AS (
 	id uuid,
 	plan_based_payable_charges numeric,
+	base_fare numeric,
 	delivery_charges numeric,
 	secuirty_deposite_charges numeric,
 	no_of_leave_day_charges numeric,
@@ -143,7 +144,7 @@ DECLARE
 
     countDate DATE := cFromDate::DATE;
     leaveDayBookingCharges NUMERIC := 0;
-    chargesType VARCHAR := 'Discount';
+    chargesType VARCHAR := 'Additional Charges';
     chargesTypeBasedAmount NUMERIC := 0;
 
     holidayCarAdditionalChargesPercent NUMERIC := 0; -- Moved declaration outside the loop for consistency
@@ -255,7 +256,8 @@ BEGIN
     FOR customerCarsRentPriceDetails IN
         SELECT 
             gen_random_uuid() as id
-            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges            
+            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges   
+            ,COALESCE(carRentPricePerDay,0) as base_fare         
             ,COALESCE(deliveryAmount, 0) as delivery_charges
             ,COALESCE(securityDepositAmount, 0) as secuirty_deposite_charges
             ,COALESCE(leaveDayBookingCharges, 0) as no_of_leave_day_charges
@@ -276,78 +278,155 @@ $$;
 
 ALTER FUNCTION public.getcustomerbookingcalculatepayment(cfromdate character varying, ctodate character varying, ccarnumber character varying, cplanbasedpayable character varying) OWNER TO postgres;
 
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
 --
--- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: admin_rental_cars_details; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
+CREATE TABLE public.admin_rental_cars_details (
+    id uuid NOT NULL,
+    brand character varying(255),
+    car_name character varying(255),
+    car_no character varying(255),
+    is_ac character varying(255),
+    img_url character varying(255),
+    category character varying(255),
+    no_of_seat character varying(255),
+    is_gps character varying(255),
+    transmission_type character varying(255),
+    fuel_type character varying(255),
+    extra_travel_km_per_price character varying(255),
+    price_per_day character varying(255),
+    branch character varying(255)
+);
+
+
+ALTER TABLE public.admin_rental_cars_details OWNER TO postgres;
+
+--
+-- Name: getrentarideadminviewcarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.getrentarideadminviewcarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, extratravelpriceperkm character varying, carno character varying) RETURNS SETOF public.admin_rental_cars_details
     LANGUAGE plpgsql
     AS $$
+BEGIN
+    
 
-DECLARE
-        customerCarsInfoList customer_cars_info_list;
-        pricePlanRecord RECORD;
-        planKmPerHour NUMERIC := 0;
-        noOfHours NUMERIC := 0;
-    BEGIN
-        
-        SELECT 
-        t1.*
-        INTO 
-        pricePlanRecord
-        FROM 
-        admin_view_price_plan_rule_details t1
-        WHERE 
-        limit_km = kmLimit;
-        
-        planKmPerHour := (pricePlanRecord.limit_km::NUMERIC / 24);
+    IF (infoType= 'Info') THEN
 
-        noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
-        
-        FOR customerCarsInfoList IN
-            SELECT
-                m2.id
-                ,m2.brand
-                ,m2.car_name
-                ,m2.car_no
-                ,m2.is_ac
-                ,m1.file_name AS img_url
-                ,m2.category
-                ,m2.no_of_seat
-                ,COALESCE(m4.no_of_free_km_per_given_date,0) as no_of_free_km_per_given_date
-                ,m2.transmission_type
-                ,m2.fuel_type
-                ,m2.extra_travel_km_per_price
-                ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
-                ,m2.branch
-            FROM
-                admin_rental_cars_upload m1
-            JOIN
-                admin_rental_cars_details m2 ON m1.id = m2.id
-            LEFT OUTER JOIN LATERAL (
-                SELECT
-                    ((m2.price_per_day::NUMERIC + (m2.price_per_day::NUMERIC * pricePlanRecord.car_rent_amount_additional_percentage::NUMERIC) / 100) / 24) AS car_rent_plan_price_per_hour
-            ) m3 ON TRUE
-            LEFT OUTER JOIN LATERAL (
-                SELECT
-                    ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
-                    ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
-            ) m4 ON TRUE
-            WHERE
-                m2.car_name IS NOT NULL
-                AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
-                AND lower(m2.category) ILIKE ANY (string_to_array(lower(categoryArgs) || '%', ','))
-                AND lower(m2.fuel_type) ILIKE ANY (string_to_array(lower(fuelType) || '%', ','))
-                AND lower(m2.transmission_type) ILIKE ANY (string_to_array(lower(transmissionType) || '%', ','))
-        LOOP
-            RETURN NEXT customerCarsInfoList;
-        END LOOP;
-    END;
+    RETURN QUERY
+    SELECT 
+        m2.*
+    FROM
+        admin_rental_cars_upload m1
+    JOIN
+        admin_rental_cars_details m2
+    ON
+        m1.id = m2.id
+    WHERE
+    m2.car_name IS NOT NULL
+        AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs) || '%', ','))
+        AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs) || '%', ','))
+        AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType) || '%', ','))
+        AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType) || '%', ','))
+        AND lower(m2.is_gps) ILIKE ANY(string_to_array(lower(itsHaveGPS) || '%', ','))
+        AND lower(m2.is_ac) ILIKE ANY(string_to_array(lower(itsHaveAC) || '%', ','))
+        AND lower(m2.extra_travel_km_per_price) ILIKE ANY(string_to_array(lower(extraTravelPricePerKm) || '%', ','))
+        AND lower(m2.car_no) ILIKE ANY(string_to_array(lower(carNo) || '%', ','));
+
+ELSIF infoType= 'Null' THEN
+
+RETURN QUERY
+SELECT 
+        mm2.*
+    FROM
+        admin_rental_cars_upload mm1
+    JOIN
+        admin_rental_cars_details mm2
+    ON
+        mm1.id = mm2.id
+    WHERE
+    mm2.car_name IS NULL;
+
+ELSIF infoType= '' THEN
+
+RETURN QUERY
+SELECT 
+        mm2.*
+    FROM
+        admin_rental_cars_upload mm1
+    JOIN
+        admin_rental_cars_details mm2
+    ON
+        mm1.id = mm2.id;
+    
+END IF;
+
+
+END;
 
 $$;
 
 
-ALTER FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
+ALTER FUNCTION public.getrentarideadminviewcarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, extratravelpriceperkm character varying, carno character varying) OWNER TO postgres;
+
+--
+-- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.getrentaridecustomercarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, carno character varying) RETURNS SETOF public.customer_cars_info_list
+    LANGUAGE plpgsql
+    AS $$
+
+DECLARE
+customerCarsInfoList customer_cars_info_list;
+
+BEGIN
+FOR customerCarsInfoList IN
+SELECT 
+m2.id 
+,m2.brand
+,m2.car_name
+,m2.car_no 
+,m2.is_ac 
+,m1.file_name as img_url
+,m2.category
+,m2.no_of_seat
+,m2.is_gps 
+,m2.transmission_type
+,m2.fuel_type 
+,m2.extra_travel_km_per_price 
+,m2.price_per_day
+,m2.branch
+FROM
+admin_rental_cars_upload m1
+,admin_rental_cars_details m2
+WHERE
+m1.id = m2.id
+AND m2.car_name is  NOT NUll
+AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
+AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
+AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
+AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
+AND lower(m2.is_gps) ILIKE ANY(string_to_array(lower(itsHaveGPS)||'%',','))
+AND lower(m2.is_ac) ILIKE ANY(string_to_array(lower(itsHaveAC)||'%',','))
+AND lower(m2.car_no) ILIKE ANY(string_to_array(lower(carNo)||'%',','))
+
+LOOP 
+
+RETURN NEXT customerCarsInfoList;
+
+END LOOP;
+END
+
+$$;
+
+
+ALTER FUNCTION public.getrentaridecustomercarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, carno character varying) OWNER TO postgres;
 
 --
 -- Name: set_created_date(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -366,10 +445,6 @@ $$;
 
 
 ALTER FUNCTION public.set_created_date() OWNER TO postgres;
-
-SET default_tablespace = '';
-
-SET default_table_access_method = heap;
 
 --
 -- Name: a; Type: TABLE; Schema: public; Owner: postgres
@@ -423,30 +498,6 @@ CREATE TABLE public.admin_email_template (
 
 
 ALTER TABLE public.admin_email_template OWNER TO postgres;
-
---
--- Name: admin_rental_cars_details; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.admin_rental_cars_details (
-    id uuid NOT NULL,
-    brand character varying(255),
-    car_name character varying(255),
-    car_no character varying(255),
-    is_ac character varying(255),
-    img_url character varying(255),
-    category character varying(255),
-    no_of_seat character varying(255),
-    is_gps character varying(255),
-    transmission_type character varying(255),
-    fuel_type character varying(255),
-    extra_travel_km_per_price character varying(255),
-    price_per_day character varying(255),
-    branch character varying(255)
-);
-
-
-ALTER TABLE public.admin_rental_cars_details OWNER TO postgres;
 
 --
 -- Name: admin_rental_cars_upload; Type: TABLE; Schema: public; Owner: postgres
@@ -596,16 +647,23 @@ CREATE TABLE public.customer_car_rent_booking_details (
     email_id character varying(255),
     car_no character varying(255),
     car_name character varying(255),
-    from_date timestamp without time zone,
-    to_date timestamp without time zone,
+    pick_up_date timestamp without time zone,
+    return_date timestamp without time zone,
     pick_up_type character varying(255),
-    delivery_or_pickup_charges integer,
-    car_rent_charges integer,
-    total_payable integer,
     approve_status character varying(255),
     car_img_name character varying(255),
     address character varying(255),
-    extra_info character varying(255)
+    extra_info character varying(255),
+    duration character varying(255),
+    free_km character varying(255),
+    plan_based_payable_charges integer,
+    base_fare integer,
+    delivery_or_pickup_charges integer,
+    secuirty_deposite_charges integer,
+    no_of_leave_day_charges integer,
+    charges_type character varying(255),
+    charges_type_based_amount integer,
+    total_payable integer
 );
 
 
@@ -648,7 +706,8 @@ CREATE TABLE public.customer_cars_rent_price_details_type (
     charges_type_based_amount integer,
     no_of_leave_day_charges integer,
     plan_based_payable_charges integer,
-    secuirty_deposite_charges integer
+    secuirty_deposite_charges integer,
+    base_fare integer
 );
 
 
@@ -864,11 +923,11 @@ COPY public.a (total_hours) FROM stdin;
 --
 
 COPY public.admin_default_properties (id, property_name, property_value, email_html_body, email_subject) FROM stdin;
-219ea9d9-e535-44b4-a826-d3d9af6efa5d	Branch	Chennai,Thiruvallur,Madurai,Trichy,Selam	\N	\N
-06c9aa96-a706-4adc-9722-2ce164299c2f	Category	Hatchback,SUV,MUV,luxury,Sedan	\N	\N
-a2118d07-c164-41a9-bd0d-5d261fd4cc62	Extra Travel Price Per Km	11,8,15	\N	\N
 e8fe4516-887d-42ec-9ff8-16eb3ec38e4c	DeliveryCharges	1000	\N	\N
 ad98589b-2142-4b1a-bf44-984f8f95b8ba	SecuirtyDepositeCharges	1500	\N	\N
+a2118d07-c164-41a9-bd0d-5d261fd4cc62	Extra Travel Price Per Km	,11,8,15	\N	\N
+219ea9d9-e535-44b4-a826-d3d9af6efa5d	Branch	,Chennai,Thiruvallur,Madurai,Trichy,Selam	\N	\N
+06c9aa96-a706-4adc-9722-2ce164299c2f	Category	,Hatchback,SUV,MUV,luxury,Sedan	\N	\N
 \.
 
 
@@ -878,7 +937,7 @@ ad98589b-2142-4b1a-bf44-984f8f95b8ba	SecuirtyDepositeCharges	1500	\N	\N
 
 COPY public.admin_email_template (id, email_subject, email_html_body) FROM stdin;
 201465b4-4965-49d6-b25b-87f391885509	CAR RENTAL SERVICE - Hope your travels were amazing! Let's catch up soon 	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:350px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 140px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">Hi ${name},<br/>\n     <b> Successfully Register your Account</b>,\n      Now your have provision to book cars for your trip .                \n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
-04c3fa6d-bf30-4bde-8fbb-d76373ae82b0	CAR RENTAL SERVICE - Car Rental Price Information	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:900px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 700px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">\n      \n      Dear ${name},<br/><br/>   \n\n      \t\t\t\tThank you for reaching out to us regarding car rental prices. We are happy to provide the following details:<br/><br/>\nCategory    : ${category}<br/>\nCar Brand   : ${brand}<br/>\nCar Model   : ${carName}<br/>\nCar Number: ${carNo}<br/>\nNo.of Seats : ${noOfSeats}<br/>\nRate per day: ${pricePerDay}<br/>\nFuel Type   : ${fuelType}<br/>\nTransmission<br/>\nType   \t\t: ${transmissionType}<br/>\nDiscounts\t: Based on Reversing time period (or) No.of days / Duration.<br/><br/>\nIf you have any specific preferences or questions, please let us know. We would be happy to assist you further with your booking.<br/><br/>\n\nWe look forward to helping you with your car rental needs.<br/><br/>\n\nBest regards,<br/>\nRental cars service team.\n\n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
+04c3fa6d-bf30-4bde-8fbb-d76373ae82b0	CAR RENTAL SERVICE - Car Rental Price Information	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:1100px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 900px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">\n      \n      Dear ${name},<br/><br/>   \n\n      \t\t\t\tThank you for reaching out to us regarding car rental prices. We are happy to provide the following details:<br/><br/>\nCategory    : ${category}<br/>\nCar Brand   : ${brand}<br/>\nCar Model   : ${carName}<br/>\nCar Number: ${carNo}<br/>\nNo.of Seats : ${noOfSeats}<br/>\nFuel Type   : ${fuelType}<br/>\nTransmission<br/>\nType   \t\t: ${transmissionType}<br/>\nDiscounts\t: Based on Reversing time period (or) No.of days / Duration.<br/><br/>\nBase Fare \t: ${baseFare}<br/>\nPlan Based Payable Charges : ${planBasedPayableCharges}<br/>\n${chargesType} : ${chargesTypeBasedAmount}<br/>\nDelivery Charges: ${deliveryCharges}<br/>\nSecurity Deposite Charges: ${securityDepositeCharges}<br/>\nNO.Of Leave Day Charges: ${noOfLeaveDayCharges}<br/>\n\n\nIf you have any specific preferences or questions, please let us know. We would be happy to assist you further with your booking.<br/><br/>\n\nWe look forward to helping you with your car rental needs.<br/><br/>\n\nBest regards,<br/>\nRental cars service team.\n\n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
 d81ecda4-2e2c-401b-b5e5-52aff4d3f5b7	CAR RENTAL SERVICE - Password Update Notification	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Password Update Notification</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n    <div class="job-card" style="position:relative;\n                                  height:750px;\n                                  width:300px;\n                                  left:10%;\n                                  top:10%;\n                                  background-color: #000d6b;\n                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);\n                                  border-radius: 8px;\n                                  margin:20px;\n                                  padding:20px;\n                                  text-align:justify;\n                                  color:white;">\n        \n        <!-- Header Message -->\n           <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">\n            Password Updated Successfully!\n        </div>\n\n        <!-- Message Content -->\n        <div class="messagecls" style="position: relative;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        text-wrap: balance;\n                                        line-height: 1.6;\n                                        margin-top:50px;">\n            Dear ${name},<br/><br/>\n            We wanted to let you know that your password has been updated successfully. If you did not make this change, please contact our support team immediately.<br/><br/>\n\n            Here are some tips to keep your account secure:<br/>\n            - Use a strong password with a mix of letters, numbers, and special characters.<br/>\n            - Never share your password with anyone.<br/><br/>\n\n            If you have any questions or need assistance, feel free to reach out to us.<br/><br/>\n\n            Best regards,<br/>\n            The Rental Cars Service Team\n        </div>\n\n        <!-- Button -->\n        <div style="text-align:center;">\n            <a href="https://rentalcar.smartyuppies.com"\n               class="buttonCls" style="display:inline-block;\n                                        background-color:#0073b1;\n                                        color:white;\n                                        padding:10px 20px;\n                                        border-radius:5px;\n                                        text-decoration:none;\n                                        font-size:14px;\n                                        cursor:pointer;\n                                        margin-top: 20px;">\nWebsite\n            </a>\n        </div>\n    </div>\n</body>\n\n</html>
 c33b2113-b361-4c89-92fd-b8b42c793978	CAR RENTAL SERVICE - Profile Update	<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">\n<head>\n\t<meta charset="UTF-8">\n\t<meta name="viewport" content="width=device-width, initial-scale=1.0">\n\t<title>Rental Cars</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0px;padding: 0px;">    \n  <div class="job-card" style="position:relative;\n    height:350px;\n    width:300px;\n    left:10%;\n    top:10%;\n    background-color: #000d6b;\n    box-shadow: 0 4px 8px rgba(0,0,0,0.1);    \n    border-radius: 8px;\n    text-align:justify;\n    margin:20px;\n    padding:20px;\n    text-align:justify;\n    ">\n    <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    ">Welcome to Rental Cars Service</div>\n    <div class="messagecls" style="position: relative;\n                                    height: 140px;\n                                    width: 80%;\n                                    margin-left:35px;\n                                    font-size: 14px;\n                                    color: orange;\n                                    text-wrap: balance;\n                                    \n                                    overflow:hidden;\n                                     margin-top:50px;\n  ">Hi ${name},<br/>\n     <b> Successfully Update your Profile Account</b>,\n      Now you have provision to book cars for your trip .                \n    </div>\n\n    <button class="buttonCls" style="position:relative;\n                                     height:35px;\n                                     width:50%;\n                                     margin-left:35px;  \n                                     background-color: #0073b1;    \n                                     border: none;    \n                                     border-radius: 5px;\n                                     cursor: pointer; \n    \n"><a href="https://rentalcar.smartyuppies.com" style="color: white;\ntext-decoration :none;">Website</a></button>\n  </div>\n</body>\n</html>\n    
 542d8697-5a28-48f9-b0c6-030cf2f888fe	CAR RENTAL SERVICE - Car Reservation Confirmation	\n    @<!DOCTYPE html>\n<html lang="en" style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n<head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1.0">\n    <title>Car Reservation Confirmation</title>\n</head>\n<body style="height:100%;width:100%;font-family: Arial, sans-serif;margin: 0;padding: 0;">\n    <div class="job-card" style="position:relative;\n                                  height:1000px;\n                                  width:300px;\n                                  left:10%;\n                                  top:10%;\n                                  background-color: #000d6b;\n                                  box-shadow: 0 4px 8px rgba(0,0,0,0.1);\n                                  border-radius: 8px;\n                                  margin:20px;\n                                  padding:20px;\n                                  text-align:justify;\n                                  color:white;">\n        <!-- Header Message -->\n       \n        <div class="headerMessage" style="position:relative;\n                                      height:10px;\n                                      width:80%;\n                                      margin-left:35px;    \n                                      color:white;\n                                      font-weight:bold;\n                                      margin-top:50px;\n    "> Your Car Reservation is Confirmed!</div>\n\n        <!-- Reservation Details -->\n        <div class="messagecls" style="position: relative;\n                                        width: 80%;\n                                        margin-left:35px;\n                                        font-size: 14px;\n                                        color: orange;\n                                        text-wrap: balance;\n                                        line-height: 1.6;\n                                        margin-top:50px;">\n            Dear ${name},<br/><br/>\n            We are thrilled to confirm your car reservation! Below are your reservation details:<br/><br/>\n\n            <strong>Pickup Date & Time</strong>: ${fromDate} <br/>\n            <strong>Return Date & Time</strong>: ${toDate} <br/><br/>\n\n            <strong>Car Details:</strong><br/>            \n            <strong>Car Model</strong>: ${carName}<br/>\n            <strong>Car Number</strong>: ${carNo}<br/>\n            <strong>Total Payable</strong>: ${totalPayable}<br/>\n            <strong>DeliveryCharge/PickupCharge</strong>: ${deliveryOrPickupCharges} <br/><br/>\n\n            If you have any specific preferences or additional requests, feel free to reach out to us.<br/><br/>\n\n            We look forward to providing you with a smooth and comfortable car rental experience!<br/><br/>\n\n            Best regards,<br/>\n            The Rental Cars Service Team\n        </div>\n\n        <!-- Button -->\n        <div style="text-align:center;">\n            <a href="https://rentalcar.smartyuppies.com"\n               class="buttonCls" style="display:inline-block;\n                                        background-color:#0073b1;\n                                        color:white;\n                                        padding:10px 20px;\n                                        border-radius:5px;\n                                        text-decoration:none;\n                                        font-size:14px;\n                                        cursor:pointer;\n                                        margin-top: 10%">\nWebsite\n            </a>\n        </div>\n    </div>\n</body>\n</html>\n
@@ -894,6 +953,7 @@ faa93467-2f2c-4b85-b071-730f02e19c00	CAR RENTAL SERVICE - Car Booking Reservatio
 COPY public.admin_rental_cars_details (id, brand, car_name, car_no, is_ac, img_url, category, no_of_seat, is_gps, transmission_type, fuel_type, extra_travel_km_per_price, price_per_day, branch) FROM stdin;
 cf19aadf-5d0d-40b8-83c8-08f5f2945589	adsf	af	2100	Yes	cf19aadf-5d0d-40b8-83c8-08f5f2945589_titleIcon.png	Hatchback	5	Yes	Automatic	Diesel	11	1000	Chennai
 d3fb84a9-d63c-4398-b3c8-4611bb00b147	asdf	ae	as3	No	d3fb84a9-d63c-4398-b3c8-4611bb00b147_RentARide.png	Hatchback	5	Yes	Automatic	Diesel	11	2000	Chennai
+ab66f87d-891c-4166-ad4c-7cdfd5a050ae	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N	\N
 \.
 
 
@@ -908,6 +968,7 @@ daeaba55-3c83-42af-a027-4d9086f07383	C:/Users/Lenovo/Desktop/uploads/	daeaba55-3
 102f7460-456a-4583-9bce-9ebdd648f7ae	C:/Users/Lenovo/Desktop/uploads/	102f7460-456a-4583-9bce-9ebdd648f7ae_tesla.png	image/jpeg	true
 dc612b8f-1b64-44eb-8976-022cbca3857e	C:/Users/Lenovo/Desktop/uploads/	dc612b8f-1b64-44eb-8976-022cbca3857e_tesla-removebg-preview.png	image/png	true
 cf19aadf-5d0d-40b8-83c8-08f5f2945589	C:/Users/Lenovo/Desktop/uploads/	cf19aadf-5d0d-40b8-83c8-08f5f2945589_titleIcon.png	image/jpeg	true
+ab66f87d-891c-4166-ad4c-7cdfd5a050ae	C:/Users/dhasa/OneDrive/Desktop/uploads/	ab66f87d-891c-4166-ad4c-7cdfd5a050ae_QR Payment Smart Yuppies.jpg	image/jpeg	false
 70de9806-4a81-4010-9521-332a99e32f8d	C:/Users/Lenovo/Desktop/uploads/	70de9806-4a81-4010-9521-332a99e32f8d_Screenshot (9).png	image/png	true
 5d8b8c44-fd92-4e8b-a840-520eba315829	C:/Users/Lenovo/Desktop/uploads/	5d8b8c44-fd92-4e8b-a840-520eba315829_Screenshot (1).png	image/png	true
 9f2be207-3d2c-49c5-8ac6-af66ca4d38ec	C:/Users/Lenovo/Desktop/uploads/	9f2be207-3d2c-49c5-8ac6-af66ca4d38ec_Screenshot (2).png	image/png	true
@@ -999,7 +1060,7 @@ c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com
 -- Data for Name: customer_car_rent_booking_details; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, from_date, to_date, pick_up_type, delivery_or_pickup_charges, car_rent_charges, total_payable, approve_status, car_img_name, address, extra_info) FROM stdin;
+COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, pick_up_date, return_date, pick_up_type, approve_status, car_img_name, address, extra_info, duration, free_km, plan_based_payable_charges, base_fare, delivery_or_pickup_charges, secuirty_deposite_charges, no_of_leave_day_charges, charges_type, charges_type_based_amount, total_payable) FROM stdin;
 \.
 
 
@@ -1015,7 +1076,7 @@ COPY public.customer_cars_info_list_type (id, branch, brand, car_name, car_no, c
 -- Data for Name: customer_cars_rent_price_details_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable, charges_type, charges_type_based_amount, no_of_leave_day_charges, plan_based_payable_charges, secuirty_deposite_charges) FROM stdin;
+COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable, charges_type, charges_type_based_amount, no_of_leave_day_charges, plan_based_payable_charges, secuirty_deposite_charges, base_fare) FROM stdin;
 \.
 
 

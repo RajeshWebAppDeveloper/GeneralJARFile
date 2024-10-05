@@ -137,32 +137,6 @@ CREATE TRIGGER before_insert_set_created_date BEFORE INSERT ON customer_feedback
 FOR EACH ROW
 EXECUTE FUNCTION set_created_date();
 
-
-
---DROP TABLE IF EXISTS customer_car_rent_booking_details CASCADE;
-CREATE TABLE customer_car_rent_booking_details (
-    id UUID  PRIMARY KEY
-    ,created_date TIMESTAMP
-    ,customer_name VARCHAR
-    ,mobile_no VARCHAR
-    ,email_id VARCHAR
-    ,car_no VARCHAR
-    ,car_name VARCHAR
-    ,from_date TIMESTAMP
-    ,to_date TIMESTAMP     
-    ,pick_up_type VARCHAR
-    ,delivery_or_pickup_charges NUMERIC
-    ,car_rent_charges NUMERIC
-    ,total_payable NUMERIC
-    ,approve_status VARCHAR
-    ,car_img_name VARCHAR
-    ,address VARCHAR
-    ,extra_info VARCHAR
- );
-
-
-
-
 --SELECT 'true'::VARCHAR as status FROM customer_car_rent_booking_details WHERE car_no = 'VW 67 JH 7878' AND to_date < '2024-09-19T20:28' AND to_date < '2024-09-20T17:28' AND approve_status = 'Car Returned';
 
 
@@ -345,6 +319,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE customer_cars_rent_price_details AS (
 	id UUID
 	,plan_based_payable_charges NUMERIC
+	,base_fare NUMERIC
     ,delivery_charges NUMERIC
     ,secuirty_deposite_charges NUMERIC
     ,no_of_leave_day_charges NUMERIC
@@ -375,7 +350,7 @@ DECLARE
 
     countDate DATE := cFromDate::DATE;
     leaveDayBookingCharges NUMERIC := 0;
-    chargesType VARCHAR := 'Discount';
+    chargesType VARCHAR := 'Additional Charges';
     chargesTypeBasedAmount NUMERIC := 0;
 
     holidayCarAdditionalChargesPercent NUMERIC := 0; -- Moved declaration outside the loop for consistency
@@ -487,7 +462,8 @@ BEGIN
     FOR customerCarsRentPriceDetails IN
         SELECT 
             gen_random_uuid() as id					
-            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges            
+            ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges   
+            ,COALESCE(carRentPricePerDay,0) as base_fare         
             ,COALESCE(deliveryAmount, 0) as delivery_charges
             ,COALESCE(securityDepositAmount, 0) as secuirty_deposite_charges
             ,COALESCE(leaveDayBookingCharges, 0) as no_of_leave_day_charges
@@ -504,3 +480,135 @@ EXCEPTION
 END;
 
 $BODY$ LANGUAGE plpgsql VOLATILE COST 100;
+
+
+--DROP FUNCTION getRentARideAdminViewCarsList(VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR,VARCHAR);
+--SELECT * FROM getRentARideAdminViewCarsList('','Chennai','Hatchback','Diesel','Automatic','Yes','No','11','as3');
+--SELECT * FROM getRentARideAdminViewCarsList('','','','','','','','');
+
+CREATE OR REPLACE FUNCTION public.getRentARideAdminViewCarsList(
+																	infoType VARCHAR
+																	,locationArgs VARCHAR
+																    ,categoryArgs VARCHAR
+																    ,fuelType VARCHAR
+																    ,transmissionType VARCHAR
+																    ,itsHaveGPS VARCHAR
+																    ,itsHaveAC VARCHAR
+																    ,extraTravelPricePerKm VARCHAR
+																    ,carNo VARCHAR
+																)
+																RETURNS SETOF admin_rental_cars_details
+																LANGUAGE 'plpgsql'
+																VOLATILE
+																PARALLEL UNSAFE
+																COST 100
+																ROWS 1000
+																AS $BODY$
+	BEGIN
+    	
+
+    	IF (infoType= 'Info') THEN
+
+	    	RETURN QUERY
+		    SELECT 
+		        m2.*
+		    FROM
+		        admin_rental_cars_upload m1
+		    JOIN
+		        admin_rental_cars_details m2
+		    ON
+		        m1.id = m2.id
+		    WHERE
+		    	m2.car_name IS NOT NULL
+		        AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs) || '%', ','))
+		        AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs) || '%', ','))
+		        AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType) || '%', ','))
+		        AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType) || '%', ','))
+		        AND lower(m2.is_gps) ILIKE ANY(string_to_array(lower(itsHaveGPS) || '%', ','))
+		        AND lower(m2.is_ac) ILIKE ANY(string_to_array(lower(itsHaveAC) || '%', ','))
+		        AND lower(m2.extra_travel_km_per_price) ILIKE ANY(string_to_array(lower(extraTravelPricePerKm) || '%', ','))
+		        AND lower(m2.car_no) ILIKE ANY(string_to_array(lower(carNo) || '%', ','));
+
+		ELSIF infoType= 'Null' THEN
+
+			RETURN QUERY
+			SELECT 
+		        mm2.*
+		    FROM
+		        admin_rental_cars_upload mm1
+		    JOIN
+		        admin_rental_cars_details mm2
+		    ON
+		        mm1.id = mm2.id
+		    WHERE
+		    	mm2.car_name IS NULL;
+
+		ELSIF infoType= '' THEN
+
+			RETURN QUERY
+			SELECT 
+		        mm2.*
+		    FROM
+		        admin_rental_cars_upload mm1
+		    JOIN
+		        admin_rental_cars_details mm2
+		    ON
+		        mm1.id = mm2.id;
+		    
+		END IF;
+
+
+	END;
+
+$BODY$;
+
+
+		
+--DROP TABLE IF EXISTS customer_car_rent_booking_details CASCADE;
+CREATE TABLE customer_car_rent_booking_details (
+    id UUID  PRIMARY KEY
+    ,created_date TIMESTAMP
+    ,customer_name VARCHAR
+    ,mobile_no VARCHAR
+    ,email_id VARCHAR
+    ,car_no VARCHAR
+    ,car_name VARCHAR
+    ,pick_up_date TIMESTAMP
+    ,return_date TIMESTAMP     
+    ,pick_up_type VARCHAR    
+    ,approve_status VARCHAR
+    ,car_img_name VARCHAR
+    ,address VARCHAR
+    ,extra_info VARCHAR
+    ,duration VARCHAR
+    ,free_km  VARCHAR
+    ,plan_based_payable_charges NUMERIC
+	,base_fare NUMERIC
+    ,delivery_or_pickup_charges NUMERIC    
+    ,secuirty_deposite_charges NUMERIC
+    ,no_of_leave_day_charges NUMERIC
+    ,charges_type VARCHAR
+    ,charges_type_based_amount NUMERIC
+    ,total_payable NUMERIC
+ );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
