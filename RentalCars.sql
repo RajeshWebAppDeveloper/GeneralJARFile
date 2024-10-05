@@ -157,49 +157,40 @@ CREATE TABLE admin_user_rights(
 
 --SELECT checkCountCarBookingBefore('1111','2024-10-01 05:47:00.0','2024-10-01 06:47:00.0');
 
-CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VARCHAR,toDate VARCHAR) RETURNS VARCHAR LANGUAGE plpgsql AS $$
+CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR) RETURNS VARCHAR LANGUAGE plpgsql AS $$
 		DECLARE
-		    status VARCHAR := 'false';
-		    tCarNO1 VARCHAR;
-		    tCarNO2 VARCHAR;
+		    status VARCHAR := 'Sold Out';
+		    car_no_based_returned_status_count INT;
+		    car_no_based_count INT;
 		BEGIN
 		    
 		    SELECT 
-		    	t1.car_no
-		    INTO
-		    	 tCarNO1
+		    	COUNT(*) 
+		    INTO 
+		    	car_no_based_returned_status_count
 		    FROM 
-		    	customer_car_rent_booking_details t1
+		    	customer_car_rent_booking_details s1
 		    WHERE 
-		    	t1.car_no = carNO;
-
-		    IF tCarNO1 IS NULL THEN		   
-		    	RAISE NOTICE 'Booking Car Available Status: Its New';     
-		        status := 'true';
-		    ELSE
-		        
-		        SELECT 
-		        	t2.car_no
-		        INTO 
-		        	tCarNO2
-		        FROM 
-		        	customer_car_rent_booking_details t2
-		        WHERE 
-		          t2.car_no = carNO
-		          AND t2.return_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
-		          AND t2.return_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')		          
-		          AND t2.approve_status = 'Car Returned';
- 
-		        RAISE NOTICE 'Booking Car Available Status %',tCarNO2;     
-		        IF tCarNO2 IS NOT NULL THEN
-		        	RAISE NOTICE 'Booking Car Available Status: Reserved';     
-		            status := 'false';
-		        ELSE
-		        	RAISE NOTICE 'Booking Car Available Status: Now Available';     
-		            status := 'true';
-		        END IF;
-		    END IF;
+		    	s1.car_no = carNO
+		    	AND s1.approve_status = 'Car Returned';
 		    
+		    
+		    SELECT 
+		    	COUNT(*) 
+		    INTO 
+		    	car_no_based_count
+		    FROM 
+		    	customer_car_rent_booking_details s2
+		    WHERE 
+		    	s2.car_no = carNO;
+		    
+		    
+		    IF car_no_based_returned_status_count = car_no_based_count THEN
+		        status := 'Book Now';
+		    ELSE
+		        status := 'Sold Out';
+		    END IF;
+
 		    RETURN status;
 		END;
 $$;
