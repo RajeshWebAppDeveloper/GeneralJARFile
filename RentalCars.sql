@@ -186,10 +186,10 @@ CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR,fromDate VAR
 		        	customer_car_rent_booking_details t2
 		        WHERE 
 		          t2.car_no = carNO
-		          AND t2.to_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
-		          AND t2.to_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')		          
+		          AND t2.return_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
+		          AND t2.return_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')		          
 		          AND t2.approve_status = 'Car Returned';
-
+ 
 		        RAISE NOTICE 'Booking Car Available Status %',tCarNO2;     
 		        IF tCarNO2 IS NOT NULL THEN
 		        	RAISE NOTICE 'Booking Car Available Status: Reserved';     
@@ -594,7 +594,13 @@ CREATE TABLE customer_car_rent_booking_details (
  );
 
 
-
+--DROP TABLE admin_whatsapp_template;
+CREATE TABLE admin_whatsapp_template(
+	id UUID   PRIMARY KEY
+	,whatsapp_subject VARCHAR		
+	,url TEXT		
+	,reference_key TEXT
+);
 
 
 
