@@ -241,6 +241,7 @@ CREATE TYPE customer_cars_info_list AS (
 	,extra_travel_km_per_price VARCHAR
 	,price_based_on_date NUMERIC
 	,branch VARCHAR
+	,car_available_status VARCHAR
 );
 
 --SELECT * FROM getRentARideCustomerCarsList('2024-09-01 01:00','2024-09-01 04:00','Chennai','Hatchback','Diesel','Automatic','140');
@@ -285,6 +286,7 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate 
                 ,m2.extra_travel_km_per_price
                 ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
                 ,m2.branch
+			    ,(CASE WHEN m5.car_no_based_returned_status_count = m6.car_no_based_count THEN 'Book Now' ELSE 'Sold Out' END) AS car_available_status                
             FROM
                 admin_rental_cars_upload m1
             JOIN
@@ -298,6 +300,23 @@ CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate 
                     ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
                     ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
             ) m4 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT 
+           			COUNT(*) as car_no_based_returned_status_count
+           		FROM 
+           			customer_car_rent_booking_details s1
+             	WHERE 
+             		s1.car_no = m2.car_no
+             		AND approve_status = 'Car Returned'
+            ) m5 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT 
+           			COUNT(*) as car_no_based_count
+           		FROM 
+           			customer_car_rent_booking_details s2
+             	WHERE 
+             		s2.car_no = m2.car_no             		
+            ) m6 ON TRUE
             WHERE
                 m2.car_name IS NOT NULL
                 AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
