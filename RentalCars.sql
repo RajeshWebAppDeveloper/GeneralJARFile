@@ -329,8 +329,6 @@ $BODY$ LANGUAGE plpgsql VOlATILE COST 100;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE customer_cars_rent_price_details AS (
 	id UUID
-	,pick_up_date_char VARCHAR
-	,return_date_char VARCHAR
 	,plan_based_payable_charges NUMERIC
 	,base_fare NUMERIC
     ,delivery_charges NUMERIC
