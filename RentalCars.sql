@@ -156,7 +156,7 @@ CREATE TABLE admin_user_rights(
 );
 
 --SELECT checkCountCarBookingBefore('1111','2024-10-01 05:47:00.0','2024-10-01 06:47:00.0');
-
+DROP FUNCTIONcheckCountCarBookingBefore(VARCHAR,VARCHAR,VARCHAR);
 CREATE OR REPLACE FUNCTION checkCountCarBookingBefore(carNO VARCHAR) RETURNS VARCHAR LANGUAGE plpgsql AS $$
 		DECLARE
 		    status VARCHAR := 'Sold Out';
@@ -329,6 +329,8 @@ $BODY$ LANGUAGE plpgsql VOlATILE COST 100;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TYPE customer_cars_rent_price_details AS (
 	id UUID
+	,pick_up_date_char VARCHAR
+	,return_date_char VARCHAR
 	,plan_based_payable_charges NUMERIC
 	,base_fare NUMERIC
     ,delivery_charges NUMERIC
@@ -472,7 +474,9 @@ BEGIN
 
     FOR customerCarsRentPriceDetails IN
         SELECT 
-            gen_random_uuid() as id					
+            gen_random_uuid() as id	
+            ,cFromDate as pick_up_date_char		
+            ,cToDate as return_date_char		
             ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges   
             ,COALESCE(carRentPricePerDay,0) as base_fare         
             ,COALESCE(deliveryAmount, 0) as delivery_charges
@@ -608,12 +612,53 @@ CREATE TABLE customer_car_rent_booking_details (
 CREATE TABLE admin_whatsapp_template(
 	id UUID   PRIMARY KEY
 	,whatsapp_subject VARCHAR		
-	,url TEXT		
-	,reference_key TEXT
+	,url TEXT
+	,reference_key TEXT			
 );
 
+--TRUNCATE admin_whatsapp_template
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Car Rental Price Information','','<br/>Customer Name: {{name}}
+<br/>Customer Mobile Number: {{mobileNo}}									
+<br/>Category: {{category}}
+<br/>Brand: {{brand}}
+<br/>Car Name: {{carName}}
+<br/>Car Number: {{carNo}}
+<br/>Number of Seats: {{noOfSeats}}
+<br/>Fuel Type: {{fuelType}}
+<br/>Transmission Type: {{transmissionType}}
+<br/>Charges Type: {{chargesType}}
+<br/>Charges Type Based Amount: {{chargesTypeBasedAmount}}
+<br/>Number of Leave Day Charges: {{noOfLeaveDayCharges}}
+<br/>Security Deposit Charges: {{securityDepositCharges}}
+<br/>Deliverycharges :{{devliveryOrPickupCharges}}										
+<br/>Plan Based Payable Charges: {{planBasedPayableCharges}}
+<br/>Base Fare: {{baseFare}}
+<br/>Pickup Date: {{pickupDate}}
+<br/>Return Date: {{returnDate}}
+<br/>Base Fare: {{baseFare}}
+');
+
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Car Rental Feedback Information','','Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}');
+
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Hope your travels were amazing! Lets catch up soon ','','Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}');
 
 
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Car Reservation Confirmation ','','<br/>Customer Name: {{name}}
+<br/>Customer Mobile Number: {{mobileNo}}
+<br/>Pickup Date: {{pickupDate}}
+<br/>Return Date: {{returnDate}}
+<br/>Total totalPayable: {{totalPayable}}');
+
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Profile Update','','Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}');
+
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Password Update Notification','','Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}');
+
+
+INSERT INTO admin_whatsapp_template values (gen_random_uuid(),'CAR RENTAL SERVICE - Car Booking Reservation Alerted','','<br/>Customer Name: {{name}}
+<br/>Customer Mobile Number: {{mobileNo}}
+<br/>Pickup Date: {{pickupDate}}
+<br/>Return Date: {{returnDate}}
+<br/>Total totalPayable: {{totalPayable}}');
 
 
 
