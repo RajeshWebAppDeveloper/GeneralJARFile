@@ -48,7 +48,8 @@ CREATE TYPE public.customer_cars_info_list AS (
 	fuel_type character varying,
 	extra_travel_km_per_price character varying,
 	price_based_on_date numeric,
-	branch character varying
+	branch character varying,
+	car_available_status character varying
 );
 
 
@@ -60,6 +61,8 @@ ALTER TYPE public.customer_cars_info_list OWNER TO postgres;
 
 CREATE TYPE public.customer_cars_rent_price_details AS (
 	id uuid,
+	pick_up_date_char character varying,
+	return_date_char character varying,
 	plan_based_payable_charges numeric,
 	base_fare numeric,
 	delivery_charges numeric,
@@ -73,57 +76,51 @@ CREATE TYPE public.customer_cars_rent_price_details AS (
 ALTER TYPE public.customer_cars_rent_price_details OWNER TO postgres;
 
 --
--- Name: checkcountcarbookingbefore(character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: checkcountcarbookingbefore(character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.checkcountcarbookingbefore(carno character varying, fromdate character varying, todate character varying) RETURNS character varying
+CREATE FUNCTION public.checkcountcarbookingbefore(carno character varying) RETURNS character varying
     LANGUAGE plpgsql
     AS $$
 DECLARE
-    status VARCHAR := 'false';
-    tCarNO1 VARCHAR;
-    tCarNO2 VARCHAR;
+    status VARCHAR := 'Sold Out';
+    car_no_based_returned_status_count INT;
+    car_no_based_count INT;
 BEGIN
     
     SELECT 
-    t1.car_no
-    INTO
-     tCarNO1
+    COUNT(*) 
+    INTO 
+    car_no_based_returned_status_count
     FROM 
-    customer_car_rent_booking_details t1
+    customer_car_rent_booking_details s1
     WHERE 
-    t1.car_no = carNO;
-
-    IF tCarNO1 IS NULL THEN        
-        status := 'true';
-    ELSE
-        
-        SELECT 
-        t2.car_no
-        INTO 
-        tCarNO2
-        FROM 
-        customer_car_rent_booking_details t2
-        WHERE 
-          t2.car_no = carNO
-          AND t2.to_date < TO_TIMESTAMP(toDate, 'YYYY-MM-DD"T"HH24:MI:SS')
-          AND t2.from_date < TO_TIMESTAMP(fromDate, 'YYYY-MM-DD"T"HH24:MI:SS')
-          AND t2.approve_status = 'Car Returned';
-
-        
-        IF tCarNO2 IS NOT NULL THEN
-            status := 'false';
-        ELSE
-            status := 'true';
-        END IF;
-    END IF;
+    s1.car_no = carNO
+    AND s1.approve_status = 'Car Returned';
     
+    
+    SELECT 
+    COUNT(*) 
+    INTO 
+    car_no_based_count
+    FROM 
+    customer_car_rent_booking_details s2
+    WHERE 
+    s2.car_no = carNO;
+    
+    
+    IF car_no_based_returned_status_count = car_no_based_count THEN
+        status := 'Book Now';
+    ELSE
+        status := 'Sold Out';
+    END IF;
+
     RETURN status;
 END;
 $$;
 
 
-ALTER FUNCTION public.checkcountcarbookingbefore(carno character varying, fromdate character varying, todate character varying) OWNER TO postgres;
+ALTER FUNCTION public.checkcountcarbookingbefore(carno character varying) OWNER TO postgres;
 
 --
 -- Name: getcustomerbookingcalculatepayment(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
@@ -256,6 +253,8 @@ BEGIN
     FOR customerCarsRentPriceDetails IN
         SELECT 
             gen_random_uuid() as id
+            ,cFromDate as pick_up_date_char
+            ,cToDate as return_date_char
             ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges   
             ,COALESCE(carRentPricePerDay,0) as base_fare         
             ,COALESCE(deliveryAmount, 0) as delivery_charges
@@ -375,58 +374,95 @@ $$;
 ALTER FUNCTION public.getrentarideadminviewcarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, extratravelpriceperkm character varying, carno character varying) OWNER TO postgres;
 
 --
--- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
+-- Name: getrentaridecustomercarslist(character varying, character varying, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE FUNCTION public.getrentaridecustomercarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, carno character varying) RETURNS SETOF public.customer_cars_info_list
+CREATE FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) RETURNS SETOF public.customer_cars_info_list
     LANGUAGE plpgsql
     AS $$
 
 DECLARE
-customerCarsInfoList customer_cars_info_list;
+        customerCarsInfoList customer_cars_info_list;
+        pricePlanRecord RECORD;
+        planKmPerHour NUMERIC := 0;
+        noOfHours NUMERIC := 0;
+    BEGIN
+        
+        SELECT 
+        t1.*
+        INTO 
+        pricePlanRecord
+        FROM 
+        admin_view_price_plan_rule_details t1
+        WHERE 
+        limit_km = kmLimit;
+        
+        planKmPerHour := (pricePlanRecord.limit_km::NUMERIC / 24);
 
-BEGIN
-FOR customerCarsInfoList IN
-SELECT 
-m2.id 
-,m2.brand
-,m2.car_name
-,m2.car_no 
-,m2.is_ac 
-,m1.file_name as img_url
-,m2.category
-,m2.no_of_seat
-,m2.is_gps 
-,m2.transmission_type
-,m2.fuel_type 
-,m2.extra_travel_km_per_price 
-,m2.price_per_day
-,m2.branch
-FROM
-admin_rental_cars_upload m1
-,admin_rental_cars_details m2
-WHERE
-m1.id = m2.id
-AND m2.car_name is  NOT NUll
-AND lower(m2.branch) ILIKE ANY(string_to_array(lower(locationArgs)||'%',','))
-AND lower(m2.category) ILIKE ANY(string_to_array(lower(categoryArgs)||'%',','))
-AND lower(m2.fuel_type) ILIKE ANY(string_to_array(lower(fuelType)||'%',','))
-AND lower(m2.transmission_type) ILIKE ANY(string_to_array(lower(transmissionType)||'%',','))
-AND lower(m2.is_gps) ILIKE ANY(string_to_array(lower(itsHaveGPS)||'%',','))
-AND lower(m2.is_ac) ILIKE ANY(string_to_array(lower(itsHaveAC)||'%',','))
-AND lower(m2.car_no) ILIKE ANY(string_to_array(lower(carNo)||'%',','))
-
-LOOP 
-
-RETURN NEXT customerCarsInfoList;
-
-END LOOP;
-END
+        noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
+        
+        FOR customerCarsInfoList IN
+            SELECT
+                m2.id
+                ,m2.brand
+                ,m2.car_name
+                ,m2.car_no
+                ,m2.is_ac
+                ,m1.file_name AS img_url
+                ,m2.category
+                ,m2.no_of_seat
+                ,COALESCE(m4.no_of_free_km_per_given_date,0) as no_of_free_km_per_given_date
+                ,m2.transmission_type
+                ,m2.fuel_type
+                ,m2.extra_travel_km_per_price
+                ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
+                ,m2.branch
+    ,(CASE WHEN m5.car_no_based_returned_status_count = m6.car_no_based_count THEN 'Book Now' ELSE 'Sold Out' END) AS car_available_status                
+            FROM
+                admin_rental_cars_upload m1
+            JOIN
+                admin_rental_cars_details m2 ON m1.id = m2.id
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ((m2.price_per_day::NUMERIC + (m2.price_per_day::NUMERIC * pricePlanRecord.car_rent_amount_additional_percentage::NUMERIC) / 100) / 24) AS car_rent_plan_price_per_hour
+            ) m3 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
+                    ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
+            ) m4 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT 
+           COUNT(*) as car_no_based_returned_status_count
+           FROM 
+           customer_car_rent_booking_details s1
+             WHERE 
+             s1.car_no = m2.car_no
+             AND approve_status = 'Car Returned'
+            ) m5 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT 
+           COUNT(*) as car_no_based_count
+           FROM 
+           customer_car_rent_booking_details s2
+             WHERE 
+             s2.car_no = m2.car_no             
+            ) m6 ON TRUE
+            WHERE
+                m2.car_name IS NOT NULL
+                AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
+                AND lower(m2.category) ILIKE ANY (string_to_array(lower(categoryArgs) || '%', ','))
+                AND lower(m2.fuel_type) ILIKE ANY (string_to_array(lower(fuelType) || '%', ','))
+                AND lower(m2.transmission_type) ILIKE ANY (string_to_array(lower(transmissionType) || '%', ','))
+        LOOP
+            RETURN NEXT customerCarsInfoList;
+        END LOOP;
+    END;
 
 $$;
 
 
-ALTER FUNCTION public.getrentaridecustomercarslist(infotype character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, itshavegps character varying, itshaveac character varying, carno character varying) OWNER TO postgres;
+ALTER FUNCTION public.getrentaridecustomercarslist(fromdate character varying, todate character varying, locationargs character varying, categoryargs character varying, fueltype character varying, transmissiontype character varying, kmlimit character varying) OWNER TO postgres;
 
 --
 -- Name: set_created_date(); Type: FUNCTION; Schema: public; Owner: postgres
@@ -585,6 +621,20 @@ CREATE TABLE public.admin_view_price_plan_rule_details (
 ALTER TABLE public.admin_view_price_plan_rule_details OWNER TO postgres;
 
 --
+-- Name: admin_whatsapp_template; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.admin_whatsapp_template (
+    id uuid NOT NULL,
+    whatsapp_subject character varying(255),
+    url text,
+    reference_key text
+);
+
+
+ALTER TABLE public.admin_whatsapp_template OWNER TO postgres;
+
+--
 -- Name: cars; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -687,7 +737,8 @@ CREATE TABLE public.customer_cars_info_list_type (
     no_of_seat character varying(255),
     is_ac character varying(255),
     price_based_on_date character varying(255),
-    transmission_type character varying(255)
+    transmission_type character varying(255),
+    car_available_status character varying(255)
 );
 
 
@@ -707,7 +758,9 @@ CREATE TABLE public.customer_cars_rent_price_details_type (
     no_of_leave_day_charges integer,
     plan_based_payable_charges integer,
     secuirty_deposite_charges integer,
-    base_fare integer
+    base_fare integer,
+    pick_up_date_char character varying(255),
+    return_date_char character varying(255)
 );
 
 
@@ -999,7 +1052,7 @@ COPY public.admin_user_rights (id, role_name, rights_object) FROM stdin;
 64a3a800-fabb-4146-8f89-0172997a7fe5	exexutive	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""}}
 558f2ec2-365f-4a29-8e99-5331186dcfa9	Admin2	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":""},"Payment Rule":{"Multi-Day Booking":""}}
 a97171d9-d823-4a80-9fce-6184cb7db0b0	Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""}}
-692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Price Plans":"","Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":""},"Feedback":""}
+692784b7-93bb-45c2-b5a1-786c5eeb8dcf	Super Admin	{"Dashboard":"","Customers Booking":"","Customers Profile":"","User":{"User Creation":"","User Rights":""},"Cars Info":"","Default Properties":"","Payment Rule":{"Price Plans":"","Holiday Booking":"","Multi-Day Booking":""},"Message Template":{"Email Template":"","Whatsapp Template":""},"Feedback":""}
 \.
 
 
@@ -1036,6 +1089,21 @@ COPY public.admin_view_price_plan_rule_details (id, limit_km, car_rent_amount_ad
 
 
 --
+-- Data for Name: admin_whatsapp_template; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.admin_whatsapp_template (id, whatsapp_subject, url, reference_key) FROM stdin;
+7483d322-8d2e-4421-95cd-aad03bb56a93	CAR RENTAL SERVICE - Car Rental Price Information		<br/>Customer Name: {{name}}\n<br/>Customer Mobile Number: {{mobileNo}}\n<br/>Category: {{category}}\n<br/>Brand: {{brand}}\n<br/>Car Name: {{carName}}\n<br/>Car Number: {{carNo}}\n<br/>Number of Seats: {{noOfSeats}}\n<br/>Fuel Type: {{fuelType}}\n<br/>Transmission Type: {{transmissionType}}\n<br/>Charges Type: {{chargesType}}\n<br/>Charges Type Based Amount: {{chargesTypeBasedAmount}}\n<br/>Number of Leave Day Charges: {{noOfLeaveDayCharges}}\n<br/>Security Deposit Charges: {{securityDepositCharges}}\n<br/>Deliverycharges :{{devliveryOrPickupCharges}}\n<br/>Plan Based Payable Charges: {{planBasedPayableCharges}}\n<br/>Base Fare: {{baseFare}}\n<br/>Pickup Date: {{pickupDate}}\n<br/>Return Date: {{returnDate}}\n<br/>Base Fare: {{baseFare}}\n
+87f8e01b-272b-4611-8870-2c690ab6c715	CAR RENTAL SERVICE - Car Rental Feedback Information		Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}
+20793ceb-db45-42ce-8b98-bc9341a56e91	CAR RENTAL SERVICE - Hope your travels were amazing! Lets catch up soon 		Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}
+20c0ba1e-c5ef-4fb9-a040-5b4c6bd8dbac	CAR RENTAL SERVICE - Car Reservation Confirmation 		<br/>Customer Name: {{name}}\n<br/>Customer Mobile Number: {{mobileNo}}\n<br/>Pickup Date: {{pickupDate}}\n<br/>Return Date: {{returnDate}}\n<br/>Total totalPayable: {{totalPayable}}
+f0525f3a-7be6-4767-9463-1b3fa415181a	CAR RENTAL SERVICE - Profile Update		Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}
+8c29a3b6-2bfd-44c7-9b17-51b31507f382	CAR RENTAL SERVICE - Password Update Notification		Customer Name: {{name}}<br/>Customer Mobile Number: {{mobileNo}}
+e630dff7-eaf5-4dbc-abb0-03de9837e350	CAR RENTAL SERVICE - Car Booking Reservation Alerted		<br/>Customer Name: {{name}}\n<br/>Customer Mobile Number: {{mobileNo}}\n<br/>Pickup Date: {{pickupDate}}\n<br/>Return Date: {{returnDate}}\n<br/>Total totalPayable: {{totalPayable}}
+\.
+
+
+--
 -- Data for Name: cars; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -1061,6 +1129,7 @@ c8591ff7-fdec-427d-921a-c8e27b5b8535	K. Naveen	9090909090	kpnaveen1312@gmail.com
 --
 
 COPY public.customer_car_rent_booking_details (id, created_date, customer_name, mobile_no, email_id, car_no, car_name, pick_up_date, return_date, pick_up_type, approve_status, car_img_name, address, extra_info, duration, free_km, plan_based_payable_charges, base_fare, delivery_or_pickup_charges, secuirty_deposite_charges, no_of_leave_day_charges, charges_type, charges_type_based_amount, total_payable) FROM stdin;
+265c05dd-662d-4db6-a2b9-1a6ea11883c2	2024-10-05 08:42:00	Rajesh	8667310426	rajesh@smartyuppies.com	2100	af	2024-10-05 04:30:00	2024-10-06 04:30:00	delivery	New Booking	cf19aadf-5d0d-40b8-83c8-08f5f2945589_titleIcon.png	\N	\N	24Hrs	320	1200	1000	1000	1500	100	\N	0	4800
 \.
 
 
@@ -1068,7 +1137,7 @@ COPY public.customer_car_rent_booking_details (id, created_date, customer_name, 
 -- Data for Name: customer_cars_info_list_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_cars_info_list_type (id, branch, brand, car_name, car_no, category, extra_travel_km_per_price, fuel_type, img_url, no_of_free_km_per_given_date, no_of_seat, is_ac, price_based_on_date, transmission_type) FROM stdin;
+COPY public.customer_cars_info_list_type (id, branch, brand, car_name, car_no, category, extra_travel_km_per_price, fuel_type, img_url, no_of_free_km_per_given_date, no_of_seat, is_ac, price_based_on_date, transmission_type, car_available_status) FROM stdin;
 \.
 
 
@@ -1076,7 +1145,7 @@ COPY public.customer_cars_info_list_type (id, branch, brand, car_name, car_no, c
 -- Data for Name: customer_cars_rent_price_details_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable, charges_type, charges_type_based_amount, no_of_leave_day_charges, plan_based_payable_charges, secuirty_deposite_charges, base_fare) FROM stdin;
+COPY public.customer_cars_rent_price_details_type (id, car_rent_charges, delivery_charges, total_payable, charges_type, charges_type_based_amount, no_of_leave_day_charges, plan_based_payable_charges, secuirty_deposite_charges, base_fare, pick_up_date_char, return_date_char) FROM stdin;
 \.
 
 
@@ -1102,7 +1171,7 @@ COPY public.customer_feedback_details (id, person_name, person_contact, person_d
 --
 
 COPY public.customer_registration_details (id, name, mobile_no, alternative_mobile_no, age, email_id, sign_status) FROM stdin;
-62dcd4a6-8912-42d7-9e3e-779b1c7c130f	Rajesh	8667310426	9090909090	77	rajesh@smartyuppies.com	active
+6a0ad81b-337e-4139-868f-c4ecd8f9df82	Rajesh	8667310426	9696969696	28	rajesh@smartyuppies.com	active
 \.
 
 
@@ -1270,6 +1339,14 @@ ALTER TABLE ONLY public.admin_view_multiple_day_car_booking_payment_rule
 
 ALTER TABLE ONLY public.admin_view_price_plan_rule_details
     ADD CONSTRAINT admin_view_price_plan_rule_details_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: admin_whatsapp_template admin_whatsapp_template_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.admin_whatsapp_template
+    ADD CONSTRAINT admin_whatsapp_template_pkey PRIMARY KEY (id);
 
 
 --
