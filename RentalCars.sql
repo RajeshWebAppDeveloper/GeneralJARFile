@@ -474,9 +474,7 @@ BEGIN
 
     FOR customerCarsRentPriceDetails IN
         SELECT 
-            gen_random_uuid() as id	
-            ,cFromDate as pick_up_date_char		
-            ,cToDate as return_date_char		
+            gen_random_uuid() as id	            
             ,COALESCE(cPlanBasedPayable::NUMERIC, 0) as plan_based_payable_charges   
             ,COALESCE(carRentPricePerDay,0) as base_fare         
             ,COALESCE(deliveryAmount, 0) as delivery_charges
