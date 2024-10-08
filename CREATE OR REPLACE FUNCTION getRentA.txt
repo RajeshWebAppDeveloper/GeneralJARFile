@@ -1,0 +1,63 @@
+CREATE OR REPLACE FUNCTION getRentARideCustomerCarsList(fromDate VARCHAR,toDate VARCHAR,locationArgs VARCHAR,categoryArgs VARCHAR,fuelType VARCHAR,transmissionType VARCHAR,kmLimit VARCHAR) RETURNS SETOF customer_cars_info_list AS $BODY$
+
+	DECLARE
+        customerCarsInfoList customer_cars_info_list;
+        pricePlanRecord RECORD;
+        planKmPerHour NUMERIC := 0;
+        noOfHours NUMERIC := 0;
+    BEGIN
+        
+        SELECT 
+        	t1.*
+        INTO 
+        	pricePlanRecord
+        FROM 
+        	admin_view_price_plan_rule_details t1
+        WHERE 
+        	limit_km = kmLimit;
+        
+        planKmPerHour := (pricePlanRecord.limit_km::NUMERIC / 24);
+
+        noOfHours := (SELECT EXTRACT(EPOCH FROM (toDate::TIMESTAMP - fromDate::TIMESTAMP)) / 3600);
+        
+        FOR customerCarsInfoList IN
+            SELECT
+                m2.id
+                ,m2.brand
+                ,m2.car_name
+                ,m2.car_no
+                ,m2.is_ac
+                ,m1.file_name AS img_url
+                ,m2.category
+                ,m2.no_of_seat
+                ,COALESCE(m4.no_of_free_km_per_given_date,0) as no_of_free_km_per_given_date
+                ,m2.transmission_type
+                ,m2.fuel_type
+                ,m2.extra_travel_km_per_price
+                ,COALESCE(m4.price_based_on_date,0) as price_based_on_date
+                ,m2.branch
+            FROM
+                admin_rental_cars_upload m1
+            JOIN
+                admin_rental_cars_details m2 ON m1.id = m2.id
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ((m2.price_per_day::NUMERIC + (m2.price_per_day::NUMERIC * pricePlanRecord.car_rent_amount_additional_percentage::NUMERIC) / 100) / 24) AS car_rent_plan_price_per_hour
+            ) m3 ON TRUE
+            LEFT OUTER JOIN LATERAL (
+                SELECT
+                    ROUND((m3.car_rent_plan_price_per_hour * noOfHours)) AS price_based_on_date
+                    ,ROUND((planKmPerHour * noOfHours)) AS no_of_free_km_per_given_date
+            ) m4 ON TRUE
+            WHERE
+                m2.car_name IS NOT NULL
+                AND lower(m2.branch) ILIKE ANY (string_to_array(lower(locationArgs) || '%', ','))
+                AND lower(m2.category) ILIKE ANY (string_to_array(lower(categoryArgs) || '%', ','))
+                AND lower(m2.fuel_type) ILIKE ANY (string_to_array(lower(fuelType) || '%', ','))
+                AND lower(m2.transmission_type) ILIKE ANY (string_to_array(lower(transmissionType) || '%', ','))
+        LOOP
+            RETURN NEXT customerCarsInfoList;
+        END LOOP;
+    END;
+
+$BODY$ LANGUAGE plpgsql VOlATILE COST 100;
