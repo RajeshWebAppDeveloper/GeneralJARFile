@@ -574,10 +574,26 @@ CREATE OR REPLACE FUNCTION public.getRentARideAdminViewCarsList(
 $BODY$;
 
 
+
+
+--DROP SEQUENCE IF EXISTS cb_sequence;
+CREATE SEQUENCE cb_sequence START 1	INCREMENT 1;
+
+CREATE OR REPLACE FUNCTION generate_cb_key() RETURNS TEXT AS $$
+	DECLARE
+	    seq_value INT;
+	BEGIN	    
+	    seq_value := nextval('cb_sequence');	    
+	    RETURN 'CB_' || seq_value;
+	END;
+$$ LANGUAGE plpgsql;
+
+
 		
 --DROP TABLE IF EXISTS customer_car_rent_booking_details CASCADE;
 CREATE TABLE customer_car_rent_booking_details (
     id UUID  PRIMARY KEY
+    ,ticket_id VARCHAR
     ,created_date TIMESTAMP
     ,customer_name VARCHAR
     ,mobile_no VARCHAR

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Define variables
-JAR_FILE="RentalCars_16_sep_2024_7pm.jar"
-LOG_FILE="RentalCars_16_sep_2024_7pm.log"
+JAR_FILE="RentalCars_7_oct_2024.jar"
+LOG_FILE="RentalCars_7_oct_2024.log"
 
 # Run the JAR file in the background and redirect stdout and stderr to the log file
 nohup java -jar $JAR_FILE > $LOG_FILE 2>&1 &
